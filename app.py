@@ -231,6 +231,7 @@ SYSTEM_PROMPT = f"""
 - 사진에서 확실하지 않은 것은 추측하지 말고 "사진으로는 확인이 어렵다"고 말한다.
 - 위험할 수 있는 작업은 반드시 조교나 교수님께 확인하라고 안내한다.
 - 답은 정해진 형식을 지킨다.
+- 존댓말(해요체)로 답하고, 형식에서 정한 표시(✅ ❌ ❓) 말고는 이모지를 쓰지 않는다.
 
 [실습실 안전수칙]
 {SAFETY_RULES}
@@ -430,7 +431,7 @@ def ask_ai(images: list, prompt: str) -> str:
     """images는 (사진 데이터, 종류) 묶음의 목록."""
     api_key = get_api_key()
     if not api_key:
-        raise RuntimeError("API 키가 설정되지 않았어. 첫 화면의 '관리자 설정'에서 키를 넣어줘.")
+        raise RuntimeError("API 키가 등록되지 않았습니다. 첫 화면의 '설정' 탭에서 키를 등록해 주세요.")
     fingerprint = hashlib.sha256(prompt.encode("utf-8") + b"".join(b for b, _ in images)).hexdigest()
     cache = answer_cache()
     if fingerprint in cache:
@@ -447,7 +448,7 @@ def ask_ai(images: list, prompt: str) -> str:
                     config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
                 )
                 if not response.text:
-                    raise RuntimeError("AI가 빈 답을 보냈어. 다른 사진으로 해봐.")
+                    raise RuntimeError("AI가 답을 보내지 않았습니다. 다른 사진으로 다시 시도해 주세요.")
                 if len(cache) >= 300:          # 너무 많이 쌓이면 비운다
                     cache.clear()
                 cache[fingerprint] = response.text
@@ -464,39 +465,40 @@ def ask_ai(images: list, prompt: str) -> str:
                     break
                 raise
     if "429" in str(last_error):
-        raise RuntimeError(f"시도한 모델 {tried}의 무료 사용량을 모두 썼어. 무료 등급은 모델마다 하루 요청 수가 정해져 있어. "
-                           "내일 다시 하거나, 첫 화면 '관리자 설정'에서 다른 모델을 고르거나, AI Studio에서 결제를 등록해줘.")
-    raise RuntimeError(f"시도한 모델 {tried} 모두 실패. 마지막 오류: {last_error}")
+        raise RuntimeError("오늘 사용할 수 있는 AI 요청 횟수를 모두 사용했습니다. 내일 다시 시도하거나 관리자에게 알려 주세요. "
+                           f"(시도한 모델: {', '.join(tried)})")
+    raise RuntimeError(f"AI 요청에 실패했습니다. (시도한 모델: {', '.join(tried)}) {last_error}")
 
 
 def analyze(photos: list, prompt: str):
     """사진(1장 이상)을 분석해서 답을 돌려준다. 실패하면 None."""
     if not photos:
-        st.warning("사진을 먼저 넣어줘.")
+        st.warning("사진을 먼저 추가해 주세요.")
         return None
-    with st.spinner("AI가 사진을 보는 중..."):
+    with st.spinner("사진을 확인하는 중입니다..."):
         try:
             return ask_ai([(p.getvalue(), p.type or "image/jpeg") for p in photos], prompt)
         except Exception as e:
-            st.error(f"오류가 났어: {e}")
+            st.error(f"요청을 처리하지 못했습니다. {e}")
             return None
 
 
 def get_photo(key: str, multi: bool = False) -> list:
     """사진을 받아서 목록으로 돌려준다. multi=True면 최대 3장까지 받는다."""
-    how = st.radio("사진 넣는 방법", ["파일 올리기", "카메라로 찍기"], horizontal=True, key=f"{key}_how")
-    if how == "카메라로 찍기":
-        shot = st.camera_input("사진 찍기", key=f"{key}_cam")
+    how = st.radio("사진 추가 방법", ["사진 선택", "카메라로 촬영"], horizontal=True, key=f"{key}_how",
+                   label_visibility="collapsed")
+    if how == "카메라로 촬영":
+        shot = st.camera_input("촬영", key=f"{key}_cam", label_visibility="collapsed")
         photos = [shot] if shot else []
     else:
-        label = "사진 선택 (폰에서는 여기서 바로 촬영도 가능)"
+        label = "사진 1장"
         if multi:
-            label = "사진 선택 (1~3장. 여러 각도로 찍으면 더 정확해)"
+            label = "사진 최대 3장 (여러 각도에서 찍으면 더 정확합니다)"
         picked = st.file_uploader(label, type=["jpg", "jpeg", "png", "webp"],
                                   accept_multiple_files=multi, key=f"{key}_file")
         photos = list(picked or []) if multi else ([picked] if picked else [])
     if len(photos) > 3:
-        st.warning("사진은 3장까지만 사용할게.")
+        st.warning("사진은 3장까지만 사용합니다.")
         photos = photos[:3]
     if photos:
         st.image(photos, width=200)
@@ -514,7 +516,7 @@ def read_answer(answer: str, tools: list):
     sure = "높음" in line("확신")
     tip = line(r"추가\s*촬영")
     if tip in ("없음", ""):
-        tip = "전체 모양이 보이게, 다른 방향에서 한 장 더 찍어줘."
+        tip = "전체 모양이 보이도록 다른 방향에서 한 장 더 촬영해 주세요."
     said = re.sub(r"[\s*`'\"\[\]()]", "", line(r"과제\s*장비"))
     matched = next((t for t in tools if t.replace(" ", "") == said), None)
     return shown, matched, sure, tip
@@ -534,7 +536,7 @@ def get_checklist(code: str, tool: str, allow_ai: bool = True):
         return CHECKLISTS[tool], "basic"
     if allow_ai:
         try:
-            with st.spinner(f"{tool} 점검표를 만드는 중..."):
+            with st.spinner(f"{tool} 점검표를 준비하는 중입니다..."):
                 text = ask_ai([], CHECK_PROMPT.format(tool=tool))
             items = [line.strip()[1:].strip() for line in text.splitlines() if line.strip().startswith("-")][:6]
             if len(items) >= 3:
@@ -557,7 +559,60 @@ def read_verdict(answer: str) -> str:
 
 
 # ------------------------------------------------------------
-# 4. 화면: 첫 화면 (학생 입장 / 교수)
+# 4. 화면 꾸미기 (글꼴, 색, 여백)
+#    색은 같은 폴더의 .streamlit/config.toml 에서 밝은 테마로 정한다.
+# ------------------------------------------------------------
+STYLE = """
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+.stApp, .stApp p, .stApp label, .stApp li, .stApp td, .stApp th, .stApp h1, .stApp h2, .stApp h3, .stApp h4,
+.stApp button, .stApp input, .stApp textarea {
+  font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+}
+[data-testid="stToolbar"], [data-testid="stDecoration"], footer { display: none; }
+.block-container { max-width: 760px; padding-top: 3.4rem; padding-bottom: 4rem; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 34px; height: 34px; border-radius: 9px; background: #1F4FD8;
+              display: flex; align-items: center; justify-content: center; flex: none; }
+.brand-name { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+.brand-sub { opacity: 0.6; font-size: 0.92rem; margin: 6px 0 20px 0; }
+.step { font-size: 0.76rem; font-weight: 700; color: #1F4FD8; letter-spacing: 0.06em; margin: 26px 0 2px 0; }
+.step-title { font-size: 1.08rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
+.stButton > button, .stDownloadButton > button, .stLinkButton > a { border-radius: 10px; font-weight: 600; }
+[data-testid="stElementContainer"]:has([data-testid="stCheckbox"]) { width: 100% !important; }
+[data-testid="stCheckbox"] { width: 100%; background: #FFFFFF; border: 1px solid rgba(128,135,150,0.28);
+                             border-radius: 10px; padding: 10px 12px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px;
+       background: #FFFFFF; border: 1px solid rgba(128,135,150,0.28); border-radius: 10px; margin-bottom: 8px; }
+.row-name { font-weight: 600; }
+.row-meta { opacity: 0.6; font-size: 0.85rem; margin-top: 2px; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600;
+         white-space: nowrap; }
+.badge.done { background: #E7F6EC; color: #1B7F3B; }
+.badge.work { background: #FFF4DB; color: #9A6700; }
+.badge.none { background: #EEF1F5; color: #6B7280; }
+.foot { opacity: 0.45; font-size: 0.8rem; margin-top: 44px; text-align: center; }
+</style>
+"""
+
+MARK = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" '
+        'stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>')
+
+
+def brand(subtitle: str = ""):
+    """화면 맨 위의 서비스 이름."""
+    st.markdown(f'<div class="brand"><div class="brand-mark">{MARK}</div>'
+                f'<div class="brand-name">기계공학 실습 도우미</div></div>'
+                f'<div class="brand-sub">{subtitle}</div>', unsafe_allow_html=True)
+
+
+def step(number: str, title: str):
+    """단계 제목. 예: STEP 1 / 사용할 장비를 선택하세요"""
+    st.markdown(f'<div class="step">{number}</div><div class="step-title">{title}</div>', unsafe_allow_html=True)
+
+
+# ------------------------------------------------------------
+# 5. 화면: 첫 화면 (학생 / 교수 / 설정)
 # ------------------------------------------------------------
 def logout():
     for key in ["role", "code", "team", "name"]:
@@ -566,23 +621,22 @@ def logout():
 
 
 def entry_screen():
-    st.title("🦺 기계공학 실습 도우미")
-    st.caption("장비를 쓰기 전에 조별로 안전 점검을 하고, 교수는 어느 조가 점검했는지 한눈에 본다.")
+    brand("실습 장비를 쓰기 전, 조별 안전 점검을 기록하고 확인합니다.")
     data = load_data()
-    tab_s, tab_p, tab_a = st.tabs(["🎓 학생 입장", "👩‍🏫 교수", "⚙️ 관리자 설정"])
+    tab_s, tab_p, tab_a = st.tabs(["학생", "교수", "설정"])
 
     with tab_s:
-        code = st.text_input("초대 코드", value=st.query_params.get("c", ""), placeholder="예: MJ-1234").strip().upper()
+        code = st.text_input("초대 코드", value=st.query_params.get("c", ""), placeholder="MJ-0000").strip().upper()
         teams = list(data.get(code, {}).get("teams", {}))
         if code and not teams:
-            st.caption("초대 코드를 정확히 넣으면 조를 고를 수 있어.")
-        team = st.selectbox("조", teams, disabled=not teams, placeholder="초대 코드를 먼저 넣어줘")
+            st.caption("초대 코드를 정확히 입력하면 조를 선택할 수 있습니다.")
+        team = st.selectbox("조", teams, disabled=not teams, placeholder="초대 코드를 먼저 입력해 주세요")
         name = st.text_input("이름").strip()
-        if st.button("입장", type="primary"):
+        if st.button("입장하기", type="primary"):
             if not teams:
-                st.error("초대 코드를 다시 확인해줘.")
+                st.error("초대 코드를 다시 확인해 주세요.")
             elif not name:
-                st.error("이름을 넣어줘.")
+                st.error("이름을 입력해 주세요.")
             else:
                 join_class(code, team, name)
                 st.session_state.update(role="student", code=code, team=team, name=name)
@@ -590,23 +644,23 @@ def entry_screen():
                 st.rerun()
 
     with tab_p:
-        mode = st.radio("무엇을 할까요?", ["새 수업 만들기", "기존 수업 열기"], horizontal=True)
+        mode = st.radio("메뉴", ["새 수업 만들기", "기존 수업 열기"], horizontal=True, label_visibility="collapsed")
         if mode == "새 수업 만들기":
-            cname = st.text_input("수업 이름", placeholder="예: MRO실습 101반 5주차").strip()
-            tools = st.multiselect("이번 실습에서 쓸 장비", DEFAULT_TOOLS, default=DEFAULT_TOOLS[:4])
-            extra = st.text_input("목록에 없는 장비 추가 (쉼표로 구분)", placeholder="예: 유압 잭, 호이스트")
+            cname = st.text_input("수업 이름", placeholder="MRO실습 101반 5주차").strip()
+            tools = st.multiselect("이번 실습에서 사용할 장비", DEFAULT_TOOLS, default=DEFAULT_TOOLS[:4])
+            extra = st.text_input("목록에 없는 장비 추가 (쉼표로 구분)", placeholder="유압 잭, 호이스트")
             team_count = st.number_input("조 수", min_value=1, max_value=30, value=6, step=1)
             pw = st.text_input("교수용 비밀번호", type="password")
             if st.button("수업 만들기", type="primary"):
                 tools = tools + [t.strip() for t in extra.split(",") if t.strip()]
                 if not cname or not tools or not pw:
-                    st.error("수업 이름, 장비 목록, 비밀번호를 모두 넣어주세요.")
+                    st.error("수업 이름, 장비, 비밀번호를 모두 입력해 주세요.")
                 else:
                     code = create_class(cname, tools, pw, int(team_count))
                     st.session_state.update(role="prof", code=code)
                     st.rerun()
         else:
-            code = st.text_input("초대 코드 ", placeholder="예: MJ-1234").strip().upper()
+            code = st.text_input("초대 코드 ", placeholder="MJ-0000").strip().upper()
             pw = st.text_input("교수용 비밀번호 ", type="password")
             if st.button("열기", type="primary"):
                 if code in data and "teams" in data[code] and data[code]["pw"] == hash_pw(pw):
@@ -616,10 +670,10 @@ def entry_screen():
                     st.error("초대 코드 또는 비밀번호가 맞지 않습니다.")
 
     with tab_a:
-        st.write("앱을 켜는 사람이 Gemini API 키를 한 번만 넣으면, 접속한 모든 사람이 키 없이 쓸 수 있어.")
+        st.caption("운영자가 Gemini API 키를 한 번 등록하면, 접속한 모든 사람이 키 없이 사용할 수 있습니다.")
         if get_api_key():
-            st.success("API 키가 설정되어 있어.")
-            if KEY_FILE.exists() and st.button("저장된 키 지우기"):
+            st.success("API 키가 등록되어 있습니다.")
+            if KEY_FILE.exists() and st.button("등록된 키 삭제"):
                 KEY_FILE.unlink()
                 st.rerun()
         else:
@@ -627,19 +681,19 @@ def entry_screen():
             if st.button("이 컴퓨터에 저장") and new_key.strip():
                 KEY_FILE.write_text(new_key.strip(), encoding="utf-8")
                 st.rerun()
-        st.caption("키는 이 폴더의 api_key.txt에 저장돼. 이 파일은 남에게 주거나 깃허브에 올리면 안 돼.")
+            st.caption("키는 이 폴더의 api_key.txt에 저장됩니다. 이 파일은 다른 사람에게 보내거나 깃허브에 올리면 안 됩니다.")
 
         if get_api_key():
-            st.markdown("#### AI 모델")
+            st.markdown("##### AI 모델")
             try:
                 names = list_models(get_api_key())
             except Exception as e:
                 names = []
-                st.warning(f"모델 목록을 불러오지 못했어: {e}")
-            st.write("지금 시도 순서: " + " → ".join(model_order(get_api_key())))
-            st.caption("무료 등급은 모델마다 하루 요청 수가 따로 정해져 있어. 하나를 다 쓰면 다음 모델로 자동으로 넘어가.")
+                st.warning(f"모델 목록을 불러오지 못했습니다. {e}")
+            st.caption("사용 순서: " + " → ".join(model_order(get_api_key())))
+            st.caption("한 모델의 하루 사용량을 다 쓰면 다음 모델로 자동으로 넘어갑니다.")
             if names:
-                pick = st.selectbox("가장 먼저 쓸 모델", ["자동"] + names)
+                pick = st.selectbox("가장 먼저 사용할 모델", ["자동"] + names)
                 if st.button("모델 저장"):
                     if pick == "자동":
                         MODEL_FILE.unlink(missing_ok=True)
@@ -649,7 +703,7 @@ def entry_screen():
 
 
 # ------------------------------------------------------------
-# 5. 화면: 학생
+# 6. 화면: 학생
 # ------------------------------------------------------------
 def student_screen(code: str, team: str, name: str):
     data = load_data()
@@ -658,19 +712,18 @@ def student_screen(code: str, team: str, name: str):
     tools = room["tools"]
 
     with st.sidebar:
-        st.subheader(room["name"])
-        st.write(f"**{team}** · {name}")
+        st.markdown(f"**{room['name']}**")
+        st.write(f"{team} · {name}")
         st.caption("조원: " + ", ".join(me["members"]))
         done = len([t for t in tools if t in me["found"]])
         st.progress(done / len(tools), text=f"점검한 장비 {done} / {len(tools)}")
         st.button("나가기", on_click=logout)
 
-    st.title("🦺 기계공학 실습 도우미")
-    tab1, tab3, tab4 = st.tabs(["🦺 사용 전 점검", "🥽 복장 점검", "📋 내 기록"])
+    brand(f"{room['name']} · {team}")
+    tab1, tab3, tab4 = st.tabs(["사용 전 점검", "복장 점검", "점검 기록"])
 
     with tab1:
-        st.subheader("장비 사용 전 안전 점검")
-        nothing = "(장비를 골라줘)"
+        nothing = "장비 선택"
         options = [nothing] + tools
 
         # 방금 점검을 마쳤으면 완료 메시지를 보여주고 선택을 비운다.
@@ -683,12 +736,12 @@ def student_screen(code: str, team: str, name: str):
         if st.session_state.get("pick") not in options:
             st.session_state["pick"] = nothing
 
-        st.markdown("**1. 어떤 장비를 쓸 거야?**")
+        step("STEP 1", "사용할 장비를 선택하세요")
         tool = st.selectbox("장비", options, key="pick", label_visibility="collapsed")
-        with st.expander("📷 장비 이름을 모르면 사진으로 찾기"):
-            st.caption("장비 하나만 화면 가운데에 크게, 밝은 곳에서 찍어줘.")
+        with st.expander("장비 이름을 모르면 사진으로 찾기"):
+            st.caption("장비 하나만 화면 가운데에 크게, 밝은 곳에서 촬영해 주세요.")
             photos = get_photo("tool", multi=True)
-            if st.button("이 장비 찾기", key="tool_btn"):
+            if st.button("사진으로 찾기", key="tool_btn"):
                 answer = analyze(photos, TOOL_PROMPT.format(tools=", ".join(tools)))
                 if answer:
                     shown, matched, sure, tip = read_answer(answer, tools)
@@ -697,19 +750,19 @@ def student_screen(code: str, team: str, name: str):
                         st.session_state["scan_info"] = {"tool": matched, "text": shown}
                         st.rerun()
                     elif matched or "알 수 없음" in shown:
-                        st.warning(f"📸 확실하지 않아. 사진을 추가해서 다시 눌러줘. {tip}")
+                        st.warning(f"사진만으로는 확실하지 않습니다. {tip}")
                     else:
-                        st.warning("이번 실습 장비 목록에 있는 장비로 보이지 않아. 위에서 직접 골라줘.")
-                        with st.expander("AI가 본 내용 보기"):
+                        st.warning("이번 실습 장비 목록에 없는 장비로 보입니다. 위에서 직접 선택해 주세요.")
+                        with st.expander("사진 분석 내용 보기"):
                             st.markdown(shown)
 
         if tool != nothing:
             info = st.session_state.get("scan_info")
             if info and info["tool"] == tool:
-                with st.expander(f"📖 {tool} 설명 보기 (구조, 사용법, 자주 나는 사고)"):
+                with st.expander(f"{tool} 설명 보기 (구조, 사용법, 자주 나는 사고)"):
                     st.markdown(info["text"])
             query = urllib.parse.quote(f"{tool} 사용법")
-            st.link_button(f"▶ 유튜브에서 '{tool} 사용법' 영상 보기",
+            st.link_button(f"'{tool} 사용법' 영상 찾아보기",
                            f"https://www.youtube.com/results?search_query={query}")
 
             turn = st.session_state.get("turn", 0)   # 점검을 마칠 때마다 체크박스를 새로 비우기 위한 번호
@@ -718,36 +771,38 @@ def student_screen(code: str, team: str, name: str):
 
             if working:
                 # ---------- 작업 중: 마무리 점검 ----------
-                st.info(f"{team}은(는) {record['time']}에 사용 전 점검을 마쳤어 ({record['by']}). 작업이 끝나면 마무리 점검을 해줘.")
-                st.markdown(f"**2. {tool} 마무리 점검**")
+                st.info(f"{record['time']}에 사용 전 점검을 마쳤습니다 (점검자 {record['by']}). "
+                        "작업이 끝나면 마무리 점검을 해 주세요.")
+                step("STEP 2", f"{tool} 마무리 점검")
                 end_items = END_CHECKS + END_EXTRA.get(tool, [])
                 ticks = [st.checkbox(item, key=f"end_{turn}_{tool}_{i}") for i, item in enumerate(end_items)]
                 st.progress(sum(ticks) / len(end_items), text=f"{sum(ticks)} / {len(end_items)} 확인")
                 if st.button("마무리 점검 완료", key="end_btn", type="primary", disabled=not all(ticks)):
                     when = mark_end(code, team, tool, name)
                     st.session_state["turn"] = turn + 1
-                    st.session_state["flash"] = f"✅ {team} {tool} 마무리 점검 완료 ({when}). 수고했어."
+                    st.session_state["flash"] = f"{team} · {tool} 마무리 점검을 완료했습니다. ({when})"
                     st.rerun()
             else:
                 # ---------- 사용 전 점검 ----------
-                st.markdown(f"**2. {tool} 사용 전 점검**")
+                step("STEP 2", f"{tool} 사용 전 점검")
                 items, source = get_checklist(code, tool)
                 items = items + COMMON_CHECKS
                 if source == "ai":
-                    st.caption("이 장비의 점검표는 AI가 만든 거야. 처음 쓸 때는 조교나 교수님께 내용을 확인받아줘.")
+                    st.caption("이 장비의 점검표는 AI가 작성한 초안입니다. 처음 사용할 때는 조교나 교수님께 내용을 확인받으세요.")
                 ticks = [st.checkbox(item, key=f"chk_{turn}_{tool}_{i}") for i, item in enumerate(items)]
                 st.progress(sum(ticks) / len(items), text=f"{sum(ticks)} / {len(items)} 확인")
 
                 photo_result, ready = "", False
                 if not all(ticks):
-                    st.caption("모든 항목을 확인해야 다음으로 넘어갈 수 있어. 하나라도 안 되면 작업하지 말고 조교나 교수님께 말해줘.")
+                    st.caption("모든 항목을 확인해야 다음 단계로 넘어갑니다. "
+                               "확인할 수 없는 항목이 있으면 작업을 시작하지 말고 조교나 교수님께 알려 주세요.")
                 else:
                     # ---------- 준비 상태 사진을 AI가 확인 ----------
-                    st.markdown("**3. 준비 상태 사진 확인**")
-                    st.caption("작업 준비를 마친 장비를 찍어줘. 공작물을 물린 곳과 주변이 같이 보이게 찍으면 좋아. AI가 사진에서 보이는 문제를 짚어줘.")
+                    step("STEP 3", "준비 상태 사진 확인")
+                    st.caption("작업 준비를 마친 장비를 촬영해 주세요. 공작물을 고정한 부분과 주변이 함께 보이면 좋습니다.")
                     setup_key = f"setup_{turn}_{tool}"
                     photos = get_photo("setup", multi=True)
-                    if st.button("AI로 확인", key="setup_btn"):
+                    if st.button("사진 확인 요청", key="setup_btn"):
                         numbered = "\n".join(f"- {item}" for item in items)
                         answer = analyze(photos, SETUP_PROMPT.format(tool=tool, items=numbered))
                         if answer:
@@ -758,71 +813,75 @@ def student_screen(code: str, team: str, name: str):
                             st.markdown(result["text"])
                     verdict = result["verdict"] if result else ""
                     if verdict == "이상 없음":
-                        st.success("사진에서 보이는 문제는 없어. 사진에 안 보이는 부분은 네가 직접 확인한 거야.")
+                        st.success("사진에서 확인되는 문제는 없습니다. 사진에 보이지 않는 부분은 직접 확인한 내용을 따릅니다.")
                         photo_result, ready = "AI 확인", True
                     elif verdict == "문제 발견":
-                        st.error("사진에서 문제가 보여. 고친 뒤에 다시 찍어서 확인하거나, 조교나 교수님께 확인받아줘.")
-                        if st.checkbox("문제를 고쳤고, 조교나 교수님께 확인받았다", key=f"fixed_{turn}_{tool}"):
+                        st.error("사진에서 문제가 확인됐습니다. 조치한 뒤 다시 촬영하거나, 조교나 교수님께 확인받으세요.")
+                        if st.checkbox("문제를 조치했고, 조교나 교수님께 확인받았습니다", key=f"fixed_{turn}_{tool}"):
                             photo_result, ready = "문제 발견 후 조치", True
                     else:
                         if verdict == "확인 어려움":
-                            st.warning("📸 사진으로는 판단하기 어려워. 장비가 잘 보이게 다시 찍어줘.")
-                        if st.checkbox("사진 확인 없이 진행한다 (AI를 쓸 수 없거나 사진으로 확인이 어려울 때만)",
+                            st.warning("사진만으로는 판단하기 어렵습니다. 장비가 잘 보이도록 다시 촬영해 주세요.")
+                        if st.checkbox("사진 확인 없이 진행합니다 (사진 확인을 사용할 수 없을 때만)",
                                        key=f"skip_{turn}_{tool}"):
                             photo_result, ready = "사진 확인 없음", True
 
-                if st.button("점검 완료, 작업 시작", key="done_btn", type="primary", disabled=not ready):
+                if st.button("점검 완료 · 작업 시작", key="done_btn", type="primary", disabled=not ready):
                     when = mark_checked(code, team, tool, name, photo_result)
                     st.session_state["turn"] = turn + 1
-                    st.session_state["flash"] = (f"✅ {team} {tool} 사용 전 점검 완료 ({when}). 안전하게 작업하고, "
-                                                 "끝나면 같은 장비를 골라서 마무리 점검을 해줘.")
+                    st.session_state["flash"] = (f"{team} · {tool} 사용 전 점검을 완료했습니다. ({when}) "
+                                                 "작업이 끝나면 같은 장비를 선택해 마무리 점검을 해 주세요.")
                     st.rerun()
 
     with tab3:
-        st.subheader("작업 전에 내 복장 점검하기")
-        work = st.selectbox("어떤 장비를 쓸 거야?", tools, key="outfit_work")
-        with st.expander("📸 촬영 예시 보기", expanded=True):
+        step("복장 점검", "작업 전에 복장과 보호구를 확인합니다")
+        work = st.selectbox("사용할 장비", tools, key="outfit_work")
+        with st.expander("촬영 예시", expanded=True):
             if GUIDE_FILE.exists():
-                # 그림을 칸 너비에 꽉 차게 보여준다.
                 svg = base64.b64encode(GUIDE_FILE.read_bytes()).decode()
                 st.markdown(f'<img src="data:image/svg+xml;base64,{svg}" style="width:100%; border-radius:8px;">',
                             unsafe_allow_html=True)
-            st.caption("머리부터 신발까지 나오게 2~3m 떨어져서, 양손을 앞으로 내밀고 찍어줘.")
+            st.caption("머리부터 신발까지 보이도록 2~3m 떨어져서, 양손을 앞으로 내밀고 촬영해 주세요.")
         photo = get_photo("outfit", multi=True)
-        if st.button("점검해줘", key="outfit_btn", type="primary"):
+        if st.button("복장 확인 요청", key="outfit_btn", type="primary"):
             answer = analyze(photo, OUTFIT_PROMPT.format(work=work))
             if answer:
-                st.markdown(answer)
+                with st.container(border=True):
+                    st.markdown(answer)
                 if "❓" in answer:
                     # 사진에 안 보여서 판단 못 한 항목이 있으면 추가 촬영을 요청한다.
-                    st.warning("📸 ❓로 표시된 항목은 사진에 안 보여서 확인하지 못했어. "
-                               "그 부분이 보이는 사진을 추가해서(최대 3장) 다시 눌러줘.")
+                    st.warning("❓로 표시된 항목은 사진에 보이지 않아 확인하지 못했습니다. "
+                               "해당 부분이 보이는 사진을 추가해(최대 3장) 다시 요청해 주세요.")
 
     with tab4:
-        st.subheader(f"{team} 점검 기록")
-        st.caption("조원 중 한 명이 점검을 마치면 우리 조 기록으로 남아.")
+        step("점검 기록", f"{team}의 장비별 점검 현황")
+        st.caption("조원 한 명이 점검을 마치면 조 전체의 기록으로 남습니다.")
         me = load_data()[code]["teams"][team]   # 방금 기록한 것까지 반영
         for tool in tools:
             record = me["found"].get(tool)
             if not record:
-                st.write(f"⬜ {tool}  ·  아직 점검 안 함")
+                badge, meta = '<span class="badge none">미점검</span>', "아직 점검하지 않았습니다"
             elif "end" in record:
-                st.write(f"✅ {tool}  ·  시작 {record['time']} ({record['by']})  ·  마무리 {record['end']['time']} ({record['end']['by']})")
+                badge = '<span class="badge done">완료</span>'
+                meta = f"시작 {record['time']} {record['by']} · 마무리 {record['end']['time']} {record['end']['by']}"
             else:
-                st.write(f"🔧 {tool}  ·  시작 {record['time']} ({record['by']})  ·  작업 중, 마무리 점검 필요")
+                badge = '<span class="badge work">작업 중</span>'
+                meta = f"시작 {record['time']} {record['by']} · 마무리 점검이 필요합니다"
+            st.markdown(f'<div class="row"><div><div class="row-name">{tool}</div>'
+                        f'<div class="row-meta">{meta}</div></div>{badge}</div>', unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------
-# 6. 화면: 교수
+# 7. 화면: 교수
 # ------------------------------------------------------------
 def cell_text(record) -> str:
     """교수 표의 한 칸: 점검 상태를 짧게 보여준다."""
     if not record:
-        return "·"
-    mark = {"AI 확인": " 📷", "문제 발견 후 조치": " ⚠️"}.get(record.get("photo", ""), "")
+        return "-"
+    mark = {"AI 확인": " · 사진 확인", "문제 발견 후 조치": " · 조치 후 진행"}.get(record.get("photo", ""), "")
     if "end" in record:
-        return f"✅ {record['time'][-5:]}~{record['end']['time'][-5:]}{mark}"
-    return f"🔧 {record['time'][-5:]} 작업 중{mark}"
+        return f"완료 {record['time'][-5:]}~{record['end']['time'][-5:]}{mark}"
+    return f"작업 중 {record['time'][-5:]}{mark}"
 
 
 def prof_screen(code: str):
@@ -830,22 +889,21 @@ def prof_screen(code: str):
     tools, teams = room["tools"], room["teams"]
 
     with st.sidebar:
-        st.subheader(room["name"])
+        st.markdown(f"**{room['name']}**")
         st.metric("초대 코드", code)
-        st.caption("학생에게 이 코드를 알려주세요.")
+        st.caption("학생에게 이 코드를 알려 주세요.")
         st.button("새로고침")
         st.button("나가기", on_click=logout)
 
-    st.title("👩‍🏫 조별 안전 점검")
-    tab_now, tab_edit = st.tabs(["📊 현황", "📝 점검표 수정"])
+    brand(f"{room['name']} · 조별 안전 점검 현황")
+    tab_now, tab_edit = st.tabs(["현황", "점검표 수정"])
 
     with tab_now:
-        st.caption(f"{room['name']} · 실습 장비 {len(tools)}개")
         rows, finished = [], 0
         for team, t in teams.items():
             done = len([tool for tool in tools if tool in t["found"]])
             finished += done == len(tools)
-            row = {"조": team, "조원": ", ".join(t["members"]) or "(아직 없음)", "진행": f"{done}/{len(tools)}"}
+            row = {"조": team, "조원": ", ".join(t["members"]) or "-", "진행": f"{done}/{len(tools)}"}
             for tool in tools:
                 row[tool] = cell_text(t["found"].get(tool))
             rows.append(row)
@@ -860,20 +918,20 @@ def prof_screen(code: str):
         c3.metric("전체 점검률", f"{round(100 * checked / total) if total else 0}%")
         c4.metric("작업 중인 장비", len(working))
 
-        st.markdown("#### 조별 현황")
+        st.markdown("##### 조별 현황")
         st.dataframe(rows, hide_index=True)
-        st.caption("🔧 사용 전 점검을 마치고 작업 중 · ✅ 마무리 점검까지 완료(시작~마무리 시각) · "
-                   "📷 준비 상태 사진을 AI가 확인 · ⚠️ 사진에서 문제가 발견돼 조치 후 진행")
+        st.caption("작업 중: 사용 전 점검을 마치고 작업하는 중 · 완료: 마무리 점검까지 마침(시작~마무리 시각) · "
+                   "사진 확인: 준비 상태 사진을 AI가 확인 · 조치 후 진행: 사진에서 문제가 발견돼 조치한 뒤 진행")
 
-        st.markdown("#### 마무리 점검을 아직 안 한 곳")
+        st.markdown("##### 마무리 점검을 아직 하지 않은 곳")
         st.write(", ".join(working) if working else "없습니다.")
 
-        st.markdown("#### 장비별 현황")
+        st.markdown("##### 장비별 현황")
         for tool in tools:
             n = len([t for t in teams.values() if tool in t["found"]])
-            st.progress(n / len(teams), text=f"{tool}: {n} / {len(teams)}조")
+            st.progress(n / len(teams), text=f"{tool}  {n} / {len(teams)}조")
 
-        st.markdown("#### 점검 기록")
+        st.markdown("##### 점검 기록")
         log = []
         for team, t in teams.items():
             for tool in tools:
@@ -884,28 +942,28 @@ def prof_screen(code: str):
         st.markdown("\n".join(log) if log else "아직 점검 기록이 없습니다.")
 
         not_done = [team for team, t in teams.items() if len([x for x in tools if x in t["found"]]) < len(tools)]
-        st.markdown("#### 점검 안 한 장비가 있는 조")
+        st.markdown("##### 점검하지 않은 장비가 있는 조")
         st.write(", ".join(not_done) if not_done else "모든 조가 완료했습니다.")
 
         header = ["조", "조원", "진행"] + tools
-        csv = "\n".join([",".join(header)] + [",".join('"' + str(r[h]).replace("·", "") + '"' for h in header) for r in rows])
-        st.download_button("엑셀용 CSV로 내려받기", "\ufeff" + csv, file_name=f"{code}_조별안전점검.csv", mime="text/csv")
+        csv = "\n".join([",".join(header)] + [",".join('"' + str(r[h]) + '"' for h in header) for r in rows])
+        st.download_button("엑셀 파일로 내려받기 (CSV)", "﻿" + csv, file_name=f"{code}_조별안전점검.csv", mime="text/csv")
 
     with tab_edit:
         st.caption("장비별 사용 전 점검표를 이 수업에 맞게 고칠 수 있습니다. 저장하면 학생 화면에 바로 반영됩니다.")
         tool = st.selectbox("장비", tools, key="edit_tool")
         items, source = get_checklist(code, tool, allow_ai=False)
-        label = {"prof": "교수가 수정한 점검표", "ai": "AI가 만든 점검표 (내용을 확인해 주세요)",
-                 "basic": "기본 점검표", "generic": "기본 항목 (이 장비 전용 점검표가 아직 없습니다)"}[source]
-        st.write(f"지금 쓰는 것: **{label}**")
+        label = {"prof": "교수가 수정한 점검표", "ai": "AI가 작성한 초안 (내용을 확인해 주세요)",
+                 "basic": "기본 점검표", "generic": "공통 기본 항목 (이 장비 전용 점검표가 아직 없습니다)"}[source]
+        st.write(f"현재 적용: **{label}**")
         ver = st.session_state.get("edit_ver", 0)
         text = st.text_area("점검 항목 (한 줄에 하나)", "\n".join(items), height=240, key=f"edit_{ver}_{tool}")
-        st.caption("아래 항목은 모든 장비에 자동으로 붙습니다: " + " / ".join(COMMON_CHECKS))
+        st.caption("모든 장비에 자동으로 추가되는 항목: " + " / ".join(COMMON_CHECKS))
         col1, col2 = st.columns(2)
         if col1.button("저장", type="primary"):
             new_items = [line.strip(" -\t") for line in text.splitlines() if line.strip(" -\t")]
             if not new_items:
-                st.error("항목을 하나 이상 넣어주세요.")
+                st.error("항목을 하나 이상 입력해 주세요.")
             else:
                 save_checklist(code, tool, new_items, "prof")
                 st.session_state["edit_ver"] = ver + 1
@@ -921,9 +979,10 @@ def prof_screen(code: str):
 
 
 # ------------------------------------------------------------
-# 7. 어떤 화면을 보여줄지 정하기
+# 8. 어떤 화면을 보여줄지 정하기
 # ------------------------------------------------------------
-st.set_page_config(page_title="기계공학 실습 도우미", page_icon="🦺")
+st.set_page_config(page_title="기계공학 실습 도우미", page_icon="✅")
+st.markdown(STYLE, unsafe_allow_html=True)
 
 # 새로고침했을 때 주소에 남아 있는 코드, 조, 이름으로 학생 로그인을 되살린다.
 all_data = load_data()
@@ -941,5 +1000,5 @@ elif role == "prof" and "teams" in room_now:
 else:
     entry_screen()
 
-st.divider()
-st.caption("이 도우미는 참고용입니다. 실제 작업 전에는 반드시 조교나 교수님의 안내를 따르세요.")
+st.markdown('<div class="foot">참고용 도구입니다. 실제 작업 전에는 반드시 조교나 교수님의 안내를 따르세요.</div>',
+            unsafe_allow_html=True)
