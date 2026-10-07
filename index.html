@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>기계공학 실습 도우미</title>
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="실습 도우미">
+<meta name="theme-color" content="#F6F7F9">
+<style>
+  html, body { margin: 0; height: 100%; background: #F6F7F9; }
+  iframe { border: 0; width: 100%; height: 100vh; height: 100dvh; display: block; }
+</style>
+</head>
+<body>
+<!-- 우리 아이콘과 이름을 가진 입구 페이지. 실제 앱은 아래 틀 안에서 열린다. -->
+<iframe id="app" title="기계공학 실습 도우미" allow="camera; microphone; clipboard-write"></iframe>
+<script>
+  // 초대 링크(?c=MJ-1234)로 들어오면 그 값을 앱에 그대로 넘긴다.
+  var extra = location.search ? "&" + location.search.slice(1) : "";
+  document.getElementById("app").src = "https://mjc-mech-lab.streamlit.app/?embed=true" + extra;
+</script>
+</body>
+</html>
