@@ -558,57 +558,245 @@ def read_verdict(answer: str) -> str:
     return "확인 어려움"
 
 
+
 # ------------------------------------------------------------
-# 4. 화면 꾸미기 (글꼴, 색, 여백)
-#    색은 같은 폴더의 .streamlit/config.toml 에서 밝은 테마로 정한다.
+# 4. 화면 꾸미기 (글꼴, 색, 카드 모양)
+#    색: 흰색 · 검정 · 파랑(#2F6BD0) · 초록(#2E8A3C)
+#    글꼴: 애플 시스템 글꼴(SF Pro, Apple SD Gothic Neo), 없으면 Pretendard
 # ------------------------------------------------------------
+BLUE, GREEN, RED, YELLOW = "#2F6BD0", "#3FA34D", "#E0483E", "#E3B23C"
+
 STYLE = """
 <style>
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
-.stApp, .stApp p, .stApp label, .stApp li, .stApp td, .stApp th, .stApp h1, .stApp h2, .stApp h3, .stApp h4,
-.stApp button, .stApp input, .stApp textarea {
-  font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+/* 디자인 기준
+   - 글꼴: 애플 시스템 글꼴, 크기는 1.25배 간격(13 · 16 · 20 · 25 · 31px)
+   - 여백: 4의 배수(4 · 8 · 12 · 16 · 24 · 32px)
+   - 회색: 파랑이 살짝 섞인 회색, 글자 대비 4.5:1 이상
+   - 그림자 · 그라데이션 · 카드 겹치기 없이, 흰 면과 얇은 선으로만 구분 */
+:root {
+  --bg: #F2F4F8; --surface: #FFFFFF; --line: #E2E6ED; --fill: #E8ECF2;
+  --text: #161A22; --text2: #4A5363; --text3: #5F6878;
+  --blue: #2F6BD0; --blue-d: #2558B0; --blue-soft: #E8EFFB;
+  --green: #2E8A3C; --green-soft: #E6F3E8; --red: #C9372D; --red-soft: #FBE9E7;
+  --amber: #9A6F00; --amber-soft: #FBF1D6;
 }
-[data-testid="stToolbar"], [data-testid="stDecoration"], footer { display: none; }
-.block-container { max-width: 760px; padding-top: 3.4rem; padding-bottom: 4rem; }
-.brand { display: flex; align-items: center; gap: 10px; }
-.brand-mark { width: 34px; height: 34px; border-radius: 9px; background: #1F4FD8;
-              display: flex; align-items: center; justify-content: center; flex: none; }
-.brand-name { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
-.brand-sub { opacity: 0.6; font-size: 0.92rem; margin: 6px 0 20px 0; }
-.step { font-size: 0.76rem; font-weight: 700; color: #1F4FD8; letter-spacing: 0.06em; margin: 26px 0 2px 0; }
-.step-title { font-size: 1.08rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
-.stButton > button, .stDownloadButton > button, .stLinkButton > a { border-radius: 10px; font-weight: 600; }
-[data-testid="stElementContainer"]:has([data-testid="stCheckbox"]) { width: 100% !important; }
-[data-testid="stCheckbox"] { width: 100%; background: #FFFFFF; border: 1px solid rgba(128,135,150,0.28);
-                             border-radius: 10px; padding: 10px 12px; }
-.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px;
-       background: #FFFFFF; border: 1px solid rgba(128,135,150,0.28); border-radius: 10px; margin-bottom: 8px; }
+.stApp, .stApp p, .stApp label, .stApp li, .stApp td, .stApp th, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5,
+.stApp button, .stApp input, .stApp textarea, .stMarkdown, .stMarkdown div, .stMarkdown span:not([data-testid]) {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Apple SD Gothic Neo', 'Pretendard', system-ui, 'Noto Sans KR', sans-serif;
+  -webkit-font-smoothing: antialiased; letter-spacing: -0.01em;
+}
+.num { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.stApp { background: var(--bg); color: var(--text); }
+.stApp p { line-height: 1.5; }
+[data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stHeader"], footer,
+[data-testid="stSidebarCollapsedControl"] { display: none !important; }
+.block-container { max-width: 560px; padding: 24px 16px 64px 16px; }
+*:focus-visible { outline: 2px solid var(--blue) !important; outline-offset: 2px; }
+
+/* 흰 면 */
+.card, .st-key-entry, [data-testid="stExpander"] {
+  background: var(--surface); border-radius: 16px; border: none; box-shadow: none; }
+.card { padding: 16px; margin-bottom: 16px; }
+.st-key-entry { padding: 16px 16px 24px 16px; }
+[data-testid="stExpander"] details { border: none; }
+[data-testid="stExpander"] summary { padding: 12px 16px; min-height: 48px; font-weight: 600; }
+.ctitle { font-weight: 600; font-size: 1rem; }
+.muted { color: var(--text3); font-size: 0.8rem; line-height: 1.4; }
+.label { color: var(--text3); font-size: 0.8rem; font-weight: 600; margin: 24px 4px 8px 4px; }
+
+/* 맨 위: 이름 */
+.st-key-head { margin: 0 0 16px 0; }
+.st-key-head [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 12px; }
+.st-key-head [data-testid="stColumn"] { min-width: 0 !important; width: auto !important; flex: 0 0 auto !important; }
+.st-key-head [data-testid="stColumn"]:first-child { flex: 1 1 auto !important; }
+.st-key-head [data-testid="stMarkdownContainer"], .st-key-head [data-testid="stMarkdown"],
+.st-key-head [data-testid="stElementContainer"] { margin: 0 !important; }
+.st-key-head .stButton > button { min-height: 44px; padding: 0 12px; font-size: 0.9rem; font-weight: 600;
+  background: transparent; border: none; color: var(--blue); }
+.who { display: flex; align-items: center; gap: 12px; }
+.avatar { width: 44px; height: 44px; border-radius: 50%; flex: none; display: flex; align-items: center;
+  justify-content: center; line-height: 1; color: #fff; font-weight: 600; font-size: 1.1rem; background: var(--blue); }
+.who-name { font-weight: 700; font-size: 1.25rem; line-height: 1.25; word-break: keep-all; letter-spacing: -0.02em; }
+.who-sub { color: var(--text3); font-size: 0.8rem; margin-top: 2px; }
+
+/* 첫 화면 */
+.hello { padding: 32px 4px 24px 4px; }
+.hello-icon { width: 56px; height: 56px; border-radius: 14px; background: var(--blue);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+.hello h1 { color: var(--text); font-size: 1.95rem !important; font-weight: 700 !important; line-height: 1.2;
+  margin: 0 0 8px 0; padding: 0 !important; letter-spacing: -0.03em; }
+.hello-desc { color: var(--text2); font-size: 1rem; line-height: 1.5; word-break: keep-all; }
+
+/* 색 타일 두 개 */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 0 16px 0; }
+.tile { border-radius: 16px; padding: 16px; color: #fff; min-height: 104px;
+  display: flex; flex-direction: column; justify-content: space-between; }
+.tile.g { background: var(--green); }
+.tile.b { background: var(--blue); }
+.tile-top { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; }
+.tile-num { font-size: 1.95rem; font-weight: 700; line-height: 1; }
+.tile-num small { font-size: 1rem; font-weight: 600; opacity: 0.85; }
+
+/* 진행률 */
+.pct { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.big { font-size: 2.44rem; font-weight: 700; line-height: 1; }
+.pill { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+  background: var(--amber-soft); color: var(--amber); white-space: nowrap; }
+.pill.ok { background: var(--green-soft); color: var(--green); }
+.track { height: 8px; background: var(--fill); border-radius: 99px; margin-top: 16px; overflow: hidden; }
+.fill { height: 100%; border-radius: 99px; background: var(--blue); }
+
+/* 숫자 4칸: 한 면을 선으로 나눔 */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-radius: 16px;
+  margin: 0 0 16px 0; padding: 12px 0; }
+.stat { text-align: center; padding: 4px; }
+.stat + .stat { border-left: 1px solid var(--line); }
+.stat b { display: block; font-size: 1.56rem; font-weight: 700; line-height: 1.2; }
+.stat span { font-size: 0.8rem; color: var(--text3); }
+.stat.red b { color: var(--red); } .stat.grn b { color: var(--green); } .stat.yel b { color: var(--amber); }
+
+/* 세로 막대 */
+.bars { display: flex; gap: 8px; overflow-x: auto; padding: 16px 0 0 0; }
+.bar { flex: 1; min-width: 40px; text-align: center; }
+.bnum { font-weight: 600; font-size: 0.8rem; margin-bottom: 4px; }
+.btrack { height: 112px; background: var(--fill); border-radius: 8px; display: flex; align-items: flex-end; overflow: hidden; }
+.bfill { width: 100%; border-radius: 8px; min-height: 4px; }
+.blab { font-size: 0.8rem; color: var(--text3); margin-top: 4px; }
+
+/* 목록: 한 면 안에서 얇은 선으로 나눔 */
+.group { background: var(--surface); border-radius: 16px; overflow: hidden; margin-bottom: 16px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; min-height: 56px; }
+.row + .row { border-top: 1px solid var(--line); }
+.row-l { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ic { width: 32px; height: 32px; border-radius: 50%; background: var(--blue-soft); color: var(--blue); flex: none;
+  display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem; }
 .row-name { font-weight: 600; }
-.row-meta { opacity: 0.6; font-size: 0.85rem; margin-top: 2px; }
-.badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600;
-         white-space: nowrap; }
-.badge.done { background: #E7F6EC; color: #1B7F3B; }
-.badge.work { background: #FFF4DB; color: #9A6700; }
-.badge.none { background: #EEF1F5; color: #6B7280; }
-.foot { opacity: 0.45; font-size: 0.8rem; margin-top: 44px; text-align: center; }
+.row-meta { color: var(--text3); font-size: 0.8rem; margin-top: 2px; }
+.badge { display: inline-block; padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.badge.done { background: var(--green-soft); color: var(--green); }
+.badge.work { background: var(--red-soft); color: var(--red); }
+.badge.none { background: var(--fill); color: var(--text3); }
+.dots { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; max-width: 58%; }
+.dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #C9D0DB; background: var(--surface); }
+.dot.done { background: #3FA34D; border-color: #3FA34D; }
+.dot.work { background: #E0483E; border-color: #E0483E; }
+.legend { display: flex; gap: 16px; font-size: 0.8rem; color: var(--text3); margin: 0 4px 8px 4px; align-items: center; }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.chip { background: var(--blue-soft); color: var(--blue-d); border-radius: 8px; padding: 4px 8px; font-size: 0.8rem; font-weight: 600; }
+
+/* 단계 제목 */
+.step { display: flex; align-items: center; gap: 8px; margin: 24px 0 8px 0; }
+.step-n { width: 24px; height: 24px; border-radius: 50%; background: var(--text); color: #fff; font-weight: 600;
+  font-size: 0.8rem; display: flex; align-items: center; justify-content: center; flex: none; }
+.step-title { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
+
+/* 탭: 애플 세그먼트 */
+[role="tablist"] { background: var(--fill) !important; border-radius: 10px; padding: 2px; gap: 2px; margin-bottom: 8px;
+  border: none !important; box-shadow: none !important; display: flex; }
+[role="tablist"]::before, [role="tablist"]::after { display: none !important; }
+[role="tab"] { flex: 1; display: flex; justify-content: center; align-items: center; border-radius: 8px; height: 36px;
+  padding: 0 8px !important; margin: 0 !important; background: transparent; border: none !important;
+  transition: background-color 150ms ease-out; }
+[role="tab"] p { font-weight: 600 !important; font-size: 0.9rem !important; color: var(--text2) !important; }
+[role="tab"][aria-selected="true"] { background: var(--surface); box-shadow: 0 1px 2px rgba(22, 26, 34, 0.12); }
+[role="tab"][aria-selected="true"] p { color: var(--text) !important; }
+.react-aria-SelectionIndicator, [data-baseweb="tab-highlight"], [data-baseweb="tab-border"] { display: none !important; }
+
+/* 버튼 · 입력칸 */
+.stButton > button, .stDownloadButton > button, .stLinkButton > a { border-radius: 12px; font-weight: 600; min-height: 48px;
+  transition: background-color 150ms ease-out; }
+[data-testid="stElementContainer"]:has([data-testid="stBaseButton-primary"]),
+[data-testid="stElementContainer"]:has(.stLinkButton) { width: 100% !important; }
+.stButton:has([data-testid="stBaseButton-primary"]), .stLinkButton { width: 100%; }
+[data-testid="stBaseButton-primary"] { width: 100%; border: none; background: var(--blue); box-shadow: none; }
+[data-testid="stBaseButton-primary"]:hover { background: var(--blue-d); }
+[data-testid="stBaseButton-primary"]:disabled { background: var(--fill); color: var(--text3); }
+.stMarkdown p, .row-meta, .muted { word-break: keep-all; }
+[data-testid="stBaseButton-secondary"] { background: var(--surface); border: 1px solid var(--line); color: var(--blue); }
+.stLinkButton > a { width: 100%; background: var(--blue-soft) !important; border: none !important; color: var(--blue-d) !important; }
+[data-baseweb="input"], [data-baseweb="select"] > div, [data-baseweb="textarea"] {
+  border-radius: 12px !important; background: var(--bg) !important; border-color: transparent !important; min-height: 48px; }
+[data-baseweb="input"] input, [data-baseweb="textarea"] textarea { background: transparent !important; }
+[data-testid="stFileUploaderDropzone"] { border-radius: 16px; background: var(--surface); border: 1px dashed #B9C4D4; }
+
+/* 점검 항목: 한 면 안의 목록 */
+.st-key-checks { background: var(--surface); border-radius: 16px; overflow: hidden; gap: 0 !important; }
+.st-key-checks [data-testid="stElementContainer"] { width: 100% !important; margin: 0 !important; }
+.st-key-checks [data-testid="stCheckbox"] { width: 100%; padding: 12px 16px; min-height: 52px; display: flex; align-items: center;
+  transition: background-color 150ms ease-out; }
+.st-key-checks [data-testid="stElementContainer"] + [data-testid="stElementContainer"] [data-testid="stCheckbox"] {
+  border-top: 1px solid var(--line); }
+.st-key-checks [data-testid="stCheckbox"]:has(input:checked) { background: #F3F9F4; }
+.st-key-checks [data-testid="stCheckbox"]:has(input:checked) p { color: var(--text2); }
+[data-testid="stProgress"] > div > div { border-radius: 99px; }
+[data-testid="stAlert"] { border-radius: 12px; }
+.foot { color: var(--text3); font-size: 0.8rem; margin-top: 40px; text-align: center; }
 </style>
 """
 
-MARK = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" '
-        'stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>')
+def _svg(path: str, size: int = 20, color: str = "#fff", width: float = 2.2) -> str:
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" '
+            f'stroke-width="{width}" stroke-linecap="round" stroke-linejoin="round">{path}</svg>')
+
+CHECK = '<path d="M5 12.5l4.5 4.5L19 7.5"/>'
+WRENCH = ('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3.5 17.3a1.8 1.8 0 0 0 2.6 2.6l5.8-5.8a4 4 0 0 0 5.2-5.4'
+          'l-2.5 2.5-2.3-.6-.6-2.3z"/>')
+CLOCK = '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
+LIST = '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>'
 
 
-def brand(subtitle: str = ""):
-    """화면 맨 위의 서비스 이름."""
-    st.markdown(f'<div class="brand"><div class="brand-mark">{MARK}</div>'
-                f'<div class="brand-name">기계공학 실습 도우미</div></div>'
-                f'<div class="brand-sub">{subtitle}</div>', unsafe_allow_html=True)
+def html(text: str):
+    st.markdown(text, unsafe_allow_html=True)
 
 
-def step(number: str, title: str):
-    """단계 제목. 예: STEP 1 / 사용할 장비를 선택하세요"""
-    st.markdown(f'<div class="step">{number}</div><div class="step-title">{title}</div>', unsafe_allow_html=True)
+def who(initial: str, title: str, sub: str):
+    """프로필 카드 왼쪽: 동그란 아바타 + 이름 + 소속"""
+    html(f'<div class="who"><div class="avatar">{initial}</div><div>'
+         f'<div class="who-name">{title}</div>'
+         f'<div class="who-sub">{sub}</div></div></div>')
+
+
+def head(initial: str, title: str, sub: str, buttons: list):
+    """화면 맨 위 흰 카드. buttons: [(글자, 누르면 할 일), ...]"""
+    with st.container(key="head"):
+        cols = st.columns([4] + [1.3] * len(buttons), vertical_alignment="center")
+        with cols[0]:
+            who(initial, title, sub)
+        for col, (label, fn) in zip(cols[1:], buttons):
+            col.button(label, on_click=fn, key=f"head_{label}")
+
+
+def step(label: str, title: str):
+    """단계 제목. 예: step("STEP 1", "사용할 장비를 선택하세요")"""
+    if label.startswith("STEP"):
+        html(f'<div class="step"><div class="step-n">{label.split()[-1]}</div><div class="step-title">{title}</div></div>')
+    else:
+        html(f'<div class="label">{title}</div>')
+
+
+def stats(boxes: list):
+    """숫자 상자 4개. boxes: [(숫자, 이름, 색 클래스), ...]"""
+    html('<div class="stats">' + "".join(f'<div class="stat {c}"><b class="num">{n}</b><span>{lab}</span></div>'
+                                         for n, lab, c in boxes) + "</div>")
+
+
+def pct_card(percent: int, title: str, detail: str):
+    pill = '<span class="pill ok">완료</span>' if percent >= 100 else '<span class="pill">진행 중</span>'
+    html(f'<div class="card"><div class="pct"><div><div class="big num">{percent}%</div>'
+         f'<div class="muted" style="margin-top:8px">{title}</div></div>{pill}</div>'
+         f'<div class="track"><div class="fill" style="width:{min(percent, 100)}%"></div></div>'
+         f'<div class="muted" style="margin-top:8px">{detail}</div></div>')
+
+
+def bar_color(ratio: float) -> str:
+    if ratio >= 1:
+        return GREEN
+    if ratio >= 0.5:
+        return YELLOW
+    if ratio > 0:
+        return "#E9842A"
+    return RED
 
 
 # ------------------------------------------------------------
@@ -621,106 +809,116 @@ def logout():
 
 
 def entry_screen():
-    brand("실습 장비를 쓰기 전, 조별 안전 점검을 기록하고 확인합니다.")
+    html(f'<div class="hello"><div class="hello-icon">{_svg(WRENCH, 28, "#fff", 2)}</div>'
+         f'<h1>기계공학 실습 도우미</h1>'
+         f'<div class="hello-desc">실습 장비를 쓰기 전, 조별로 안전 점검을 하고 기록을 남깁니다.</div></div>')
     data = load_data()
-    tab_s, tab_p, tab_a = st.tabs(["학생", "교수", "설정"])
 
-    with tab_s:
-        code = st.text_input("초대 코드", value=st.query_params.get("c", ""), placeholder="MJ-0000").strip().upper()
-        teams = list(data.get(code, {}).get("teams", {}))
-        if code and not teams:
-            st.caption("초대 코드를 정확히 입력하면 조를 선택할 수 있습니다.")
-        team = st.selectbox("조", teams, disabled=not teams, placeholder="초대 코드를 먼저 입력해 주세요")
-        name = st.text_input("이름").strip()
-        if st.button("입장하기", type="primary"):
-            if not teams:
-                st.error("초대 코드를 다시 확인해 주세요.")
-            elif not name:
-                st.error("이름을 입력해 주세요.")
-            else:
-                join_class(code, team, name)
-                st.session_state.update(role="student", code=code, team=team, name=name)
-                st.query_params.update(c=code, t=team, n=name)   # 새로고침해도 로그인 유지
-                st.rerun()
+    with st.container(key="entry"):
+        tab_s, tab_p, tab_a = st.tabs(["학생", "교수", "설정"])
 
-    with tab_p:
-        mode = st.radio("메뉴", ["새 수업 만들기", "기존 수업 열기"], horizontal=True, label_visibility="collapsed")
-        if mode == "새 수업 만들기":
-            cname = st.text_input("수업 이름", placeholder="MRO실습 101반 5주차").strip()
-            tools = st.multiselect("이번 실습에서 사용할 장비", DEFAULT_TOOLS, default=DEFAULT_TOOLS[:4])
-            extra = st.text_input("목록에 없는 장비 추가 (쉼표로 구분)", placeholder="유압 잭, 호이스트")
-            team_count = st.number_input("조 수", min_value=1, max_value=30, value=6, step=1)
-            pw = st.text_input("교수용 비밀번호", type="password")
-            if st.button("수업 만들기", type="primary"):
-                tools = tools + [t.strip() for t in extra.split(",") if t.strip()]
-                if not cname or not tools or not pw:
-                    st.error("수업 이름, 장비, 비밀번호를 모두 입력해 주세요.")
+        with tab_s:
+            code = st.text_input("초대 코드", value=st.query_params.get("c", ""), placeholder="MJ-0000").strip().upper()
+            teams = list(data.get(code, {}).get("teams", {}))
+            if code and not teams:
+                st.caption("초대 코드를 정확히 입력하면 조를 선택할 수 있습니다.")
+            team = st.selectbox("조", teams, disabled=not teams, placeholder="초대 코드를 먼저 입력해 주세요")
+            name = st.text_input("이름").strip()
+            if st.button("입장하기", type="primary"):
+                if not teams:
+                    st.error("초대 코드를 다시 확인해 주세요.")
+                elif not name:
+                    st.error("이름을 입력해 주세요.")
                 else:
-                    code = create_class(cname, tools, pw, int(team_count))
-                    st.session_state.update(role="prof", code=code)
+                    join_class(code, team, name)
+                    st.session_state.update(role="student", code=code, team=team, name=name)
+                    st.query_params.update(c=code, t=team, n=name)   # 새로고침해도 로그인 유지
                     st.rerun()
-        else:
-            code = st.text_input("초대 코드 ", placeholder="MJ-0000").strip().upper()
-            pw = st.text_input("교수용 비밀번호 ", type="password")
-            if st.button("열기", type="primary"):
-                if code in data and "teams" in data[code] and data[code]["pw"] == hash_pw(pw):
-                    st.session_state.update(role="prof", code=code)
-                    st.rerun()
-                else:
-                    st.error("초대 코드 또는 비밀번호가 맞지 않습니다.")
 
-    with tab_a:
-        st.caption("운영자가 Gemini API 키를 한 번 등록하면, 접속한 모든 사람이 키 없이 사용할 수 있습니다.")
-        if get_api_key():
-            st.success("API 키가 등록되어 있습니다.")
-            if KEY_FILE.exists() and st.button("등록된 키 삭제"):
-                KEY_FILE.unlink()
-                st.rerun()
-        else:
-            new_key = st.text_input("Gemini API 키", type="password")
-            if st.button("이 컴퓨터에 저장") and new_key.strip():
-                KEY_FILE.write_text(new_key.strip(), encoding="utf-8")
-                st.rerun()
-            st.caption("키는 이 폴더의 api_key.txt에 저장됩니다. 이 파일은 다른 사람에게 보내거나 깃허브에 올리면 안 됩니다.")
-
-        if get_api_key():
-            st.markdown("##### AI 모델")
-            try:
-                names = list_models(get_api_key())
-            except Exception as e:
-                names = []
-                st.warning(f"모델 목록을 불러오지 못했습니다. {e}")
-            st.caption("사용 순서: " + " → ".join(model_order(get_api_key())))
-            st.caption("한 모델의 하루 사용량을 다 쓰면 다음 모델로 자동으로 넘어갑니다.")
-            if names:
-                pick = st.selectbox("가장 먼저 사용할 모델", ["자동"] + names)
-                if st.button("모델 저장"):
-                    if pick == "자동":
-                        MODEL_FILE.unlink(missing_ok=True)
+        with tab_p:
+            mode = st.radio("메뉴", ["새 수업 만들기", "기존 수업 열기"], horizontal=True, label_visibility="collapsed")
+            if mode == "새 수업 만들기":
+                cname = st.text_input("수업 이름", placeholder="MRO실습 101반 5주차").strip()
+                tools = st.multiselect("이번 실습에서 사용할 장비", DEFAULT_TOOLS, default=DEFAULT_TOOLS[:4])
+                extra = st.text_input("목록에 없는 장비 추가 (쉼표로 구분)", placeholder="유압 잭, 호이스트")
+                team_count = st.number_input("조 수", min_value=1, max_value=30, value=6, step=1)
+                pw = st.text_input("교수용 비밀번호", type="password")
+                if st.button("수업 만들기", type="primary"):
+                    tools = tools + [t.strip() for t in extra.split(",") if t.strip()]
+                    if not cname or not tools or not pw:
+                        st.error("수업 이름, 장비, 비밀번호를 모두 입력해 주세요.")
                     else:
-                        MODEL_FILE.write_text(pick, encoding="utf-8")
+                        code = create_class(cname, tools, pw, int(team_count))
+                        st.session_state.update(role="prof", code=code)
+                        st.rerun()
+            else:
+                code = st.text_input("초대 코드 ", placeholder="MJ-0000").strip().upper()
+                pw = st.text_input("교수용 비밀번호 ", type="password")
+                if st.button("수업 현황 열기", type="primary"):
+                    if code in data and "teams" in data[code] and data[code]["pw"] == hash_pw(pw):
+                        st.session_state.update(role="prof", code=code)
+                        st.rerun()
+                    else:
+                        st.error("초대 코드 또는 비밀번호가 맞지 않습니다.")
+
+        with tab_a:
+            st.caption("운영자가 Gemini API 키를 한 번 등록하면, 접속한 모든 사람이 키 없이 사용할 수 있습니다.")
+            if get_api_key():
+                st.success("API 키가 등록되어 있습니다.")
+                if KEY_FILE.exists() and st.button("등록된 키 삭제"):
+                    KEY_FILE.unlink()
                     st.rerun()
+            else:
+                new_key = st.text_input("Gemini API 키", type="password")
+                if st.button("이 컴퓨터에 저장") and new_key.strip():
+                    KEY_FILE.write_text(new_key.strip(), encoding="utf-8")
+                    st.rerun()
+                st.caption("키는 이 폴더의 api_key.txt에 저장됩니다. 이 파일은 다른 사람에게 보내거나 깃허브에 올리면 안 됩니다.")
+
+            if get_api_key():
+                st.markdown("##### AI 모델")
+                try:
+                    names = list_models(get_api_key())
+                except Exception as e:
+                    names = []
+                    st.warning(f"모델 목록을 불러오지 못했습니다. {e}")
+                st.caption("사용 순서: " + " → ".join(model_order(get_api_key())))
+                st.caption("한 모델의 하루 사용량을 다 쓰면 다음 모델로 자동으로 넘어갑니다.")
+                if names:
+                    pick = st.selectbox("가장 먼저 사용할 모델", ["자동"] + names)
+                    if st.button("모델 저장"):
+                        if pick == "자동":
+                            MODEL_FILE.unlink(missing_ok=True)
+                        else:
+                            MODEL_FILE.write_text(pick, encoding="utf-8")
+                        st.rerun()
 
 
 # ------------------------------------------------------------
 # 6. 화면: 학생
 # ------------------------------------------------------------
+def team_numbers(found: dict, tools: list):
+    """완료 / 작업 중 / 미점검 장비 수"""
+    done = len([t for t in tools if t in found and "end" in found[t]])
+    work = len([t for t in tools if t in found and "end" not in found[t]])
+    return done, work, len(tools) - done - work
+
+
 def student_screen(code: str, team: str, name: str):
     data = load_data()
     room = data[code]
     me = room["teams"][team]      # 우리 조의 기록
     tools = room["tools"]
 
-    with st.sidebar:
-        st.markdown(f"**{room['name']}**")
-        st.write(f"{team} · {name}")
-        st.caption("조원: " + ", ".join(me["members"]))
-        done = len([t for t in tools if t in me["found"]])
-        st.progress(done / len(tools), text=f"점검한 장비 {done} / {len(tools)}")
-        st.button("나가기", on_click=logout)
+    head(name[:1], name, f"{room['name']} · {team}", [("나가기", logout)])
+    done, work, left = team_numbers(me["found"], tools)
+    html(f'<div class="tiles">'
+         f'<div class="tile g"><div class="tile-top">{_svg(CHECK, 16, "#fff", 2.6)}사용 전 점검</div>'
+         f'<div class="tile-num num">{done + work}<small> / {len(tools)}</small></div></div>'
+         f'<div class="tile b"><div class="tile-top">{_svg(CLOCK, 16, "#fff", 2.2)}마무리 점검 대기</div>'
+         f'<div class="tile-num num">{work}</div></div></div>')
 
-    brand(f"{room['name']} · {team}")
-    tab1, tab3, tab4 = st.tabs(["사용 전 점검", "복장 점검", "점검 기록"])
+    tab1, tab3, tab4 = st.tabs(["점검", "복장", "기록"])
 
     with tab1:
         nothing = "장비 선택"
@@ -775,7 +973,8 @@ def student_screen(code: str, team: str, name: str):
                         "작업이 끝나면 마무리 점검을 해 주세요.")
                 step("STEP 2", f"{tool} 마무리 점검")
                 end_items = END_CHECKS + END_EXTRA.get(tool, [])
-                ticks = [st.checkbox(item, key=f"end_{turn}_{tool}_{i}") for i, item in enumerate(end_items)]
+                with st.container(key="checks"):
+                    ticks = [st.checkbox(item, key=f"end_{turn}_{tool}_{i}") for i, item in enumerate(end_items)]
                 st.progress(sum(ticks) / len(end_items), text=f"{sum(ticks)} / {len(end_items)} 확인")
                 if st.button("마무리 점검 완료", key="end_btn", type="primary", disabled=not all(ticks)):
                     when = mark_end(code, team, tool, name)
@@ -789,7 +988,8 @@ def student_screen(code: str, team: str, name: str):
                 items = items + COMMON_CHECKS
                 if source == "ai":
                     st.caption("이 장비의 점검표는 AI가 작성한 초안입니다. 처음 사용할 때는 조교나 교수님께 내용을 확인받으세요.")
-                ticks = [st.checkbox(item, key=f"chk_{turn}_{tool}_{i}") for i, item in enumerate(items)]
+                with st.container(key="checks"):
+                    ticks = [st.checkbox(item, key=f"chk_{turn}_{tool}_{i}") for i, item in enumerate(items)]
                 st.progress(sum(ticks) / len(items), text=f"{sum(ticks)} / {len(items)} 확인")
 
                 photo_result, ready = "", False
@@ -834,17 +1034,16 @@ def student_screen(code: str, team: str, name: str):
                     st.rerun()
 
     with tab3:
-        step("복장 점검", "작업 전에 복장과 보호구를 확인합니다")
-        work = st.selectbox("사용할 장비", tools, key="outfit_work")
+        step("복장", "작업 전에 복장과 보호구를 확인합니다")
+        work_tool = st.selectbox("사용할 장비", tools, key="outfit_work")
         with st.expander("촬영 예시", expanded=True):
             if GUIDE_FILE.exists():
                 svg = base64.b64encode(GUIDE_FILE.read_bytes()).decode()
-                st.markdown(f'<img src="data:image/svg+xml;base64,{svg}" style="width:100%; border-radius:8px;">',
-                            unsafe_allow_html=True)
+                html(f'<img src="data:image/svg+xml;base64,{svg}" style="width:100%; border-radius:12px;">')
             st.caption("머리부터 신발까지 보이도록 2~3m 떨어져서, 양손을 앞으로 내밀고 촬영해 주세요.")
         photo = get_photo("outfit", multi=True)
         if st.button("복장 확인 요청", key="outfit_btn", type="primary"):
-            answer = analyze(photo, OUTFIT_PROMPT.format(work=work))
+            answer = analyze(photo, OUTFIT_PROMPT.format(work=work_tool))
             if answer:
                 with st.container(border=True):
                     st.markdown(answer)
@@ -854,21 +1053,32 @@ def student_screen(code: str, team: str, name: str):
                                "해당 부분이 보이는 사진을 추가해(최대 3장) 다시 요청해 주세요.")
 
     with tab4:
-        step("점검 기록", f"{team}의 장비별 점검 현황")
-        st.caption("조원 한 명이 점검을 마치면 조 전체의 기록으로 남습니다.")
         me = load_data()[code]["teams"][team]   # 방금 기록한 것까지 반영
-        for tool in tools:
+        done, work, left = team_numbers(me["found"], tools)
+        percent = round(100 * (done + work) / len(tools)) if tools else 0
+        chips = "".join(f'<span class="chip">{m}</span>' for m in me["members"])
+        html(f'<div class="card"><div class="ctitle">{team} 조원</div><div class="chips">{chips}</div>'
+             f'<div class="muted" style="margin-top:8px">조원 한 명이 점검을 마치면 조 전체의 기록으로 남습니다.</div></div>')
+        pct_card(percent, "사용 전 점검 진행률", f"점검한 장비 {done + work} / {len(tools)}")
+        stats([(len(tools), "전체", ""), (work, "작업 중", "red"), (done, "완료", "grn"), (left, "미점검", "yel")])
+
+        step("기록", "장비별 점검 현황")
+        if done + work == 0:
+            st.info("아직 점검한 장비가 없습니다. 점검 탭에서 사용할 장비를 고르면 시작할 수 있습니다.")
+        rows_html = ""
+        for i, tool in enumerate(tools, 1):
             record = me["found"].get(tool)
             if not record:
                 badge, meta = '<span class="badge none">미점검</span>', "아직 점검하지 않았습니다"
             elif "end" in record:
                 badge = '<span class="badge done">완료</span>'
-                meta = f"시작 {record['time']} {record['by']} · 마무리 {record['end']['time']} {record['end']['by']}"
+                meta = f"시작 {record['time'][-5:]} {record['by']} · 마무리 {record['end']['time'][-5:]} {record['end']['by']}"
             else:
                 badge = '<span class="badge work">작업 중</span>'
-                meta = f"시작 {record['time']} {record['by']} · 마무리 점검이 필요합니다"
-            st.markdown(f'<div class="row"><div><div class="row-name">{tool}</div>'
-                        f'<div class="row-meta">{meta}</div></div>{badge}</div>', unsafe_allow_html=True)
+                meta = f"시작 {record['time'][-5:]} {record['by']} · 마무리 점검 필요"
+            rows_html += (f'<div class="row"><div class="row-l"><div class="ic">{i}</div><div>'
+                          f'<div class="row-name">{tool}</div><div class="row-meta">{meta}</div></div></div>{badge}</div>')
+        html(f'<div class="group">{rows_html}</div>')
 
 
 # ------------------------------------------------------------
@@ -888,21 +1098,13 @@ def prof_screen(code: str):
     room = load_data()[code]
     tools, teams = room["tools"], room["teams"]
 
-    with st.sidebar:
-        st.markdown(f"**{room['name']}**")
-        st.metric("초대 코드", code)
-        st.caption("학생에게 이 코드를 알려 주세요.")
-        st.button("새로고침")
-        st.button("나가기", on_click=logout)
-
-    brand(f"{room['name']} · 조별 안전 점검 현황")
+    head("교", room["name"], f"초대 코드 {code}", [("나가기", logout)])
     tab_now, tab_edit = st.tabs(["현황", "점검표 수정"])
 
     with tab_now:
-        rows, finished = [], 0
+        rows = []
         for team, t in teams.items():
             done = len([tool for tool in tools if tool in t["found"]])
-            finished += done == len(tools)
             row = {"조": team, "조원": ", ".join(t["members"]) or "-", "진행": f"{done}/{len(tools)}"}
             for tool in tools:
                 row[tool] = cell_text(t["found"].get(tool))
@@ -910,44 +1112,79 @@ def prof_screen(code: str):
 
         working = [f"{team} {tool}" for team, t in teams.items() for tool in tools
                    if tool in t["found"] and "end" not in t["found"][tool]]
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("입장한 조", f"{len([t for t in teams.values() if t['members']])} / {len(teams)}")
-        c2.metric("전부 점검한 조", finished)
         total = len(teams) * len(tools)
         checked = sum(len([tool for tool in tools if tool in t["found"]]) for t in teams.values())
-        c3.metric("전체 점검률", f"{round(100 * checked / total) if total else 0}%")
-        c4.metric("작업 중인 장비", len(working))
+        finished = sum(len([tool for tool in tools if tool in t["found"] and "end" in t["found"][tool]])
+                       for t in teams.values())
+        joined = len([t for t in teams.values() if t["members"]])
 
-        st.markdown("##### 조별 현황")
-        st.dataframe(rows, hide_index=True)
-        st.caption("작업 중: 사용 전 점검을 마치고 작업하는 중 · 완료: 마무리 점검까지 마침(시작~마무리 시각) · "
-                   "사진 확인: 준비 상태 사진을 AI가 확인 · 조치 후 진행: 사진에서 문제가 발견돼 조치한 뒤 진행")
+        pct_card(round(100 * checked / total) if total else 0, "전체 점검률",
+                 f"입장한 조 {joined} / {len(teams)} · 점검한 칸 {checked} / {total}")
+        stats([(len(teams), "전체 조", ""), (len(working), "작업 중", "red"),
+               (finished, "마무리 완료", "grn"), (total - checked, "미점검", "yel")])
 
-        st.markdown("##### 마무리 점검을 아직 하지 않은 곳")
-        st.write(", ".join(working) if working else "없습니다.")
-
-        st.markdown("##### 장비별 현황")
-        for tool in tools:
-            n = len([t for t in teams.values() if tool in t["found"]])
-            st.progress(n / len(teams), text=f"{tool}  {n} / {len(teams)}조")
-
-        st.markdown("##### 점검 기록")
-        log = []
+        # 조별 막대 그래프
+        bars = ""
         for team, t in teams.items():
+            n = len([tool for tool in tools if tool in t["found"]])
+            ratio = n / len(tools) if tools else 0
+            bars += (f'<div class="bar"><div class="bnum num">{n}</div><div class="btrack">'
+                     f'<div class="bfill" style="height:{max(ratio * 100, 5):.0f}%; background:{bar_color(ratio)}"></div>'
+                     f'</div><div class="blab">{team}</div></div>')
+        html(f'<div class="card"><div class="ctitle">조별 점검 현황</div>'
+             f'<div class="muted">사용 전 점검을 마친 장비 수 (장비 {len(tools)}개 중)</div><div class="bars">{bars}</div></div>')
+
+        # 조별 목록 (점 하나 = 장비 하나)
+        step("조별", "장비별 점검 상태")
+        html(f'<div class="legend"><span><i style="background:{GREEN}"></i>완료</span>'
+             f'<span><i style="background:{RED}"></i>작업 중</span>'
+             f'<span><i style="background:#fff; border:2px solid #D5DCE6"></i>미점검</span></div>')
+        rows_html = ""
+        for team, t in teams.items():
+            dots = ""
             for tool in tools:
                 r = t["found"].get(tool)
-                if r:
-                    end = f" · 마무리 {r['end']['time']} {r['end']['by']}" if "end" in r else " · 작업 중"
-                    log.append(f"- {team} · {tool} · 시작 {r['time']} {r['by']} · 사진: {r.get('photo', '-')}{end}")
-        st.markdown("\n".join(log) if log else "아직 점검 기록이 없습니다.")
+                cls = "" if not r else ("done" if "end" in r else "work")
+                dots += f'<span class="dot {cls}" title="{tool}"></span>'
+            members = ", ".join(t["members"]) or "미입장"
+            rows_html += (f'<div class="row"><div class="row-l"><div class="ic">{team.replace("조", "")}</div><div>'
+                          f'<div class="row-name">{team}</div><div class="row-meta">{members}</div></div></div>'
+                          f'<div class="dots">{dots}</div></div>')
+        html(f'<div class="group">{rows_html}</div>')
+        html(f'<div class="muted" style="margin:-8px 4px 16px 4px">점 순서: {" · ".join(tools)}</div>')
 
-        not_done = [team for team, t in teams.items() if len([x for x in tools if x in t["found"]]) < len(tools)]
-        st.markdown("##### 점검하지 않은 장비가 있는 조")
-        st.write(", ".join(not_done) if not_done else "모든 조가 완료했습니다.")
+        # 장비별 진행
+        lines = ""
+        for tool in tools:
+            n = len([t for t in teams.values() if tool in t["found"]])
+            ratio = n / len(teams) if teams else 0
+            lines += (f'<div style="margin-top:12px"><div style="display:flex; justify-content:space-between">'
+                      f'<span style="font-weight:600">{tool}</span><span class="muted">{n} / {len(teams)}조</span></div>'
+                      f'<div class="track" style="margin-top:6px"><div class="fill" style="width:{ratio * 100:.0f}%"></div></div></div>')
+        html(f'<div class="card"><div class="ctitle">장비별 진행</div>{lines}</div>')
 
+        if working:
+            st.warning("마무리 점검을 아직 하지 않은 곳: " + ", ".join(working))
+
+        with st.expander("표로 보기"):
+            st.dataframe(rows, hide_index=True)
+            st.caption("작업 중: 사용 전 점검을 마치고 작업하는 중 · 완료: 마무리 점검까지 마침(시작~마무리 시각) · "
+                       "사진 확인: 준비 상태 사진을 AI가 확인 · 조치 후 진행: 사진에서 문제가 발견돼 조치한 뒤 진행")
+        with st.expander("점검 기록 전체"):
+            log = []
+            for team, t in teams.items():
+                for tool in tools:
+                    r = t["found"].get(tool)
+                    if r:
+                        end = f" · 마무리 {r['end']['time']} {r['end']['by']}" if "end" in r else " · 작업 중"
+                        log.append(f"- {team} · {tool} · 시작 {r['time']} {r['by']} · 사진: {r.get('photo', '-')}{end}")
+            st.markdown("\n".join(log) if log else f"아직 점검 기록이 없습니다. 학생들에게 초대 코드 {code}를 알려 주세요.")
+
+        st.button("현황 새로고침", use_container_width=True)
         header = ["조", "조원", "진행"] + tools
         csv = "\n".join([",".join(header)] + [",".join('"' + str(r[h]) + '"' for h in header) for r in rows])
-        st.download_button("엑셀 파일로 내려받기 (CSV)", "﻿" + csv, file_name=f"{code}_조별안전점검.csv", mime="text/csv")
+        st.download_button("엑셀 파일로 내려받기 (CSV)", "﻿" + csv, file_name=f"{code}_조별안전점검.csv",
+                           mime="text/csv", use_container_width=True)
 
     with tab_edit:
         st.caption("장비별 사용 전 점검표를 이 수업에 맞게 고칠 수 있습니다. 저장하면 학생 화면에 바로 반영됩니다.")
@@ -960,7 +1197,7 @@ def prof_screen(code: str):
         text = st.text_area("점검 항목 (한 줄에 하나)", "\n".join(items), height=240, key=f"edit_{ver}_{tool}")
         st.caption("모든 장비에 자동으로 추가되는 항목: " + " / ".join(COMMON_CHECKS))
         col1, col2 = st.columns(2)
-        if col1.button("저장", type="primary"):
+        if col1.button("점검표 저장", type="primary"):
             new_items = [line.strip(" -\t") for line in text.splitlines() if line.strip(" -\t")]
             if not new_items:
                 st.error("항목을 하나 이상 입력해 주세요.")
@@ -981,7 +1218,7 @@ def prof_screen(code: str):
 # ------------------------------------------------------------
 # 8. 어떤 화면을 보여줄지 정하기
 # ------------------------------------------------------------
-st.set_page_config(page_title="기계공학 실습 도우미", page_icon="✅")
+st.set_page_config(page_title="기계공학 실습 도우미", page_icon="✅", initial_sidebar_state="collapsed")
 st.markdown(STYLE, unsafe_allow_html=True)
 
 # 새로고침했을 때 주소에 남아 있는 코드, 조, 이름으로 학생 로그인을 되살린다.
@@ -1000,5 +1237,4 @@ elif role == "prof" and "teams" in room_now:
 else:
     entry_screen()
 
-st.markdown('<div class="foot">참고용 도구입니다. 실제 작업 전에는 반드시 조교나 교수님의 안내를 따르세요.</div>',
-            unsafe_allow_html=True)
+html('<div class="foot">참고용 도구입니다. 실제 작업 전에는 반드시 조교나 교수님의 안내를 따르세요.</div>')
