@@ -4,3 +4,9 @@ primaryColor = "#2F6BD0"
 backgroundColor = "#F2F4F8"
 secondaryBackgroundColor = "#F2F4F8"
 textColor = "#161A22"
+
+[server]
+# 홈 화면 앱(github.io 안에 끼워 넣은 화면)에서 사진 업로드가 막히지 않도록
+enableXsrfProtection = false
+enableCORS = false
+maxUploadSize = 20
