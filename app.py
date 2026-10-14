@@ -746,6 +746,11 @@ CLOCK = '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
 LIST = '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>'
 
 
+# 앱 아이콘(기어 + 체크). 홈 화면 아이콘과 같은 그림.
+LOGO = ('<svg width="56" height="56" viewBox="0 0 512 512" style="display:block; border-radius:14px">'
+        '<rect width="512" height="512" fill="#2F6BD0"/><path d="M392.9,226.9 L426.3,232.1 L426.3,279.9 L392.9,285.1 L379.6,321.7 L401.9,347.1 L371.1,383.8 L342.2,366.3 L308.4,385.8 L309.2,419.6 L262.0,427.9 L251.1,395.9 L212.7,389.1 L191.6,415.5 L150.1,391.5 L162.3,360.0 L137.3,330.2 L104.1,336.7 L87.8,291.8 L117.4,275.5 L117.4,236.5 L87.8,220.2 L104.1,175.3 L137.3,181.8 L162.3,152.0 L150.1,120.5 L191.6,96.5 L212.7,122.9 L251.1,116.1 L262.0,84.1 L309.2,92.4 L308.4,126.2 L342.2,145.7 L371.1,128.2 L401.9,164.9 L379.6,190.3Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"/><circle cx="256" cy="256" r="140" fill="#FFFFFF"/><circle cx="256" cy="256" r="92" fill="#2F6BD0"/><path d="M214 258L246 290L302 228" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+
+
 def html(text: str):
     st.markdown(text, unsafe_allow_html=True)
 
@@ -809,7 +814,7 @@ def logout():
 
 
 def entry_screen():
-    html(f'<div class="hello"><div class="hello-icon">{_svg(WRENCH, 28, "#fff", 2)}</div>'
+    html(f'<div class="hello"><div class="hello-icon">{LOGO}</div>'
          f'<h1>기계공학 실습 도우미</h1>'
          f'<div class="hello-desc">실습 장비를 쓰기 전, 조별로 안전 점검을 하고 기록을 남깁니다.</div></div>')
     data = load_data()
@@ -1218,7 +1223,7 @@ def prof_screen(code: str):
 # ------------------------------------------------------------
 # 8. 어떤 화면을 보여줄지 정하기
 # ------------------------------------------------------------
-st.set_page_config(page_title="기계공학 실습 도우미", page_icon="✅", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="기계공학 실습 도우미", page_icon=str(HERE / "icon-180.png") if (HERE / "icon-180.png").exists() else "✅", initial_sidebar_state="collapsed")
 st.markdown(STYLE, unsafe_allow_html=True)
 
 # 새로고침했을 때 주소에 남아 있는 코드, 조, 이름으로 학생 로그인을 되살린다.
