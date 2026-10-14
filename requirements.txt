@@ -1,3 +1,4 @@
 streamlit
 google-genai
 tzdata
+# 2026-10-14 설정 변경 적용 (앱 다시 시작)
