@@ -366,6 +366,26 @@ def mark_end(code: str, team: str, tool: str, name: str) -> str:
     return now
 
 
+def outfit_result(answer: str) -> str:
+    """AI 답에서 복장 점검 결과를 한 단어로 뽑는다."""
+    if "수정 필요" in answer or "❌" in answer:
+        return "수정 필요"
+    if "❓" in answer:
+        return "확인 어려움"
+    return "통과"
+
+
+def mark_outfit(code: str, team: str, name: str, work: str, result: str, answer: str) -> str:
+    """학생 한 명의 복장 점검 결과를 조 기록에 남긴다. 사진은 저장하지 않는다."""
+    now = now_text()
+
+    def change(data):
+        data[code]["teams"][team].setdefault("outfit", {})[name] = {
+            "time": now, "work": work, "result": result, "text": answer[:1500]}
+    change_data(change)
+    return now
+
+
 def save_checklist(code: str, tool: str, items, source: str = "prof"):
     """수업의 점검표를 저장한다. items가 None이면 저장된 것을 지워서 기본 점검표로 되돌린다."""
     def change(data):
@@ -684,6 +704,10 @@ STYLE = """
 .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .chip { background: var(--blue-soft); color: var(--blue-d); border-radius: 8px; padding: 4px 8px; font-size: 0.8rem; font-weight: 600; }
+.chip.ok { background: var(--green-soft); color: var(--green); }
+.chip.bad { background: var(--red-soft); color: var(--red); }
+.chip.mid { background: var(--amber-soft); color: var(--amber); }
+.chip.none { background: var(--fill); color: var(--text3); }
 
 /* 단계 제목 */
 .step { display: flex; align-items: center; gap: 8px; margin: 24px 0 8px 0; }
@@ -902,6 +926,22 @@ def entry_screen():
 # ------------------------------------------------------------
 # 6. 화면: 학생
 # ------------------------------------------------------------
+OUTFIT_CLASS = {"통과": "ok", "수정 필요": "bad", "확인 어려움": "mid"}
+
+
+def outfit_chips(team_data: dict) -> str:
+    """조원 이름표. 색으로 복장 점검 결과를 보여준다."""
+    out = team_data.get("outfit", {})
+    chips = ""
+    for m in team_data["members"]:
+        r = out.get(m)
+        if r:
+            chips += f'<span class="chip {OUTFIT_CLASS.get(r["result"], "none")}">{m} · {r["result"]} {r["time"][-5:]}</span>'
+        else:
+            chips += f'<span class="chip none">{m} · 복장 미점검</span>'
+    return chips
+
+
 def team_numbers(found: dict, tools: list):
     """완료 / 작업 중 / 미점검 장비 수"""
     done = len([t for t in tools if t in found and "end" in found[t]])
@@ -1046,12 +1086,22 @@ def student_screen(code: str, team: str, name: str):
                 svg = base64.b64encode(GUIDE_FILE.read_bytes()).decode()
                 html(f'<img src="data:image/svg+xml;base64,{svg}" style="width:100%; border-radius:12px;">')
             st.caption("머리부터 신발까지 보이도록 2~3m 떨어져서, 양손을 앞으로 내밀고 촬영해 주세요.")
+        mine = me.get("outfit", {}).get(name)
+        if mine:
+            st.caption(f"내 최근 복장 점검: {mine['time']} · {mine['result']} ({mine['work']})")
         photo = get_photo("outfit", multi=True)
         if st.button("복장 확인 요청", key="outfit_btn", type="primary"):
             answer = analyze(photo, OUTFIT_PROMPT.format(work=work_tool))
             if answer:
+                result = outfit_result(answer)
+                when = mark_outfit(code, team, name, work_tool, result, answer)
                 with st.container(border=True):
                     st.markdown(answer)
+                msg = f"복장 점검 결과({result})가 {when}에 기록됐습니다. 교수님 화면에서도 볼 수 있습니다."
+                if result == "통과":
+                    st.success(msg)
+                else:
+                    st.error(msg + " 고친 뒤 다시 찍어 주세요.")
                 if "❓" in answer:
                     # 사진에 안 보여서 판단 못 한 항목이 있으면 추가 촬영을 요청한다.
                     st.warning("❓로 표시된 항목은 사진에 보이지 않아 확인하지 못했습니다. "
@@ -1061,9 +1111,9 @@ def student_screen(code: str, team: str, name: str):
         me = load_data()[code]["teams"][team]   # 방금 기록한 것까지 반영
         done, work, left = team_numbers(me["found"], tools)
         percent = round(100 * (done + work) / len(tools)) if tools else 0
-        chips = "".join(f'<span class="chip">{m}</span>' for m in me["members"])
+        chips = outfit_chips(me)
         html(f'<div class="card"><div class="ctitle">{team} 조원</div><div class="chips">{chips}</div>'
-             f'<div class="muted" style="margin-top:8px">조원 한 명이 점검을 마치면 조 전체의 기록으로 남습니다.</div></div>')
+             f'<div class="muted" style="margin-top:8px">장비 점검은 조원 한 명이 마치면 조 전체의 기록으로 남고, 복장 점검은 사람마다 남습니다.</div></div>')
         pct_card(percent, "사용 전 점검 진행률", f"점검한 장비 {done + work} / {len(tools)}")
         stats([(len(tools), "전체", ""), (work, "작업 중", "red"), (done, "완료", "grn"), (left, "미점검", "yel")])
 
@@ -1110,7 +1160,8 @@ def prof_screen(code: str):
         rows = []
         for team, t in teams.items():
             done = len([tool for tool in tools if tool in t["found"]])
-            row = {"조": team, "조원": ", ".join(t["members"]) or "-", "진행": f"{done}/{len(tools)}"}
+            row = {"조": team, "조원": ", ".join(t["members"]) or "-", "진행": f"{done}/{len(tools)}",
+                   "복장": ", ".join(f"{m} {r['result']}" for m, r in t.get("outfit", {}).items()) or "-"}
             for tool in tools:
                 row[tool] = cell_text(t["found"].get(tool))
             rows.append(row)
@@ -1158,6 +1209,26 @@ def prof_screen(code: str):
         html(f'<div class="group">{rows_html}</div>')
         html(f'<div class="muted" style="margin:-8px 4px 16px 4px">점 순서: {" · ".join(tools)}</div>')
 
+        # 조원별 복장 점검
+        step("복장", "조원별 복장 점검")
+        orows = ""
+        for team, t in teams.items():
+            if not t["members"]:
+                continue
+            orows += (f'<div class="row" style="align-items:flex-start"><div class="row-l"><div class="ic">{team.replace("조", "")}</div>'
+                      f'<div><div class="row-name">{team}</div><div class="chips" style="margin-top:6px">{outfit_chips(t)}</div></div></div></div>')
+        html(f'<div class="group">{orows}</div>' if orows else '<div class="muted" style="margin:0 4px 16px">아직 입장한 조가 없습니다.</div>')
+        bad = [f"{team} {m}" for team, t in teams.items() for m, r in t.get("outfit", {}).items() if r["result"] != "통과"]
+        if bad:
+            st.warning("복장을 다시 확인해야 하는 학생: " + ", ".join(bad))
+        records = [(team, m, r) for team, t in teams.items() for m, r in t.get("outfit", {}).items()]
+        if records:
+            with st.expander("학생별 복장 점검 내용 보기"):
+                for team, m, r in records:
+                    st.markdown(f"**{team} {m}** · {r['time']} · {r['result']} · {r['work']}")
+                    st.markdown(r["text"])
+                    st.divider()
+
         # 장비별 진행
         lines = ""
         for tool in tools:
@@ -1183,10 +1254,12 @@ def prof_screen(code: str):
                     if r:
                         end = f" · 마무리 {r['end']['time']} {r['end']['by']}" if "end" in r else " · 작업 중"
                         log.append(f"- {team} · {tool} · 시작 {r['time']} {r['by']} · 사진: {r.get('photo', '-')}{end}")
+                for m, r in t.get("outfit", {}).items():
+                    log.append(f"- {team} · 복장 · {m} · {r['time']} · {r['result']} ({r['work']})")
             st.markdown("\n".join(log) if log else f"아직 점검 기록이 없습니다. 학생들에게 초대 코드 {code}를 알려 주세요.")
 
         st.button("현황 새로고침", use_container_width=True)
-        header = ["조", "조원", "진행"] + tools
+        header = ["조", "조원", "진행", "복장"] + tools
         csv = "\n".join([",".join(header)] + [",".join('"' + str(r[h]) + '"' for h in header) for r in rows])
         st.download_button("엑셀 파일로 내려받기 (CSV)", "﻿" + csv, file_name=f"{code}_조별안전점검.csv",
                            mime="text/csv", use_container_width=True)
