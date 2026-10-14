@@ -641,8 +641,8 @@ STYLE = """
 
 /* 첫 화면 */
 .hello { padding: 32px 4px 24px 4px; }
-.hello-icon { width: 56px; height: 56px; border-radius: 14px; background: var(--blue);
-  display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+.hello-icon { width: 56px; height: 56px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line);
+  overflow: hidden; margin-bottom: 16px; }
 .hello h1 { color: var(--text); font-size: 1.95rem !important; font-weight: 700 !important; line-height: 1.2;
   margin: 0 0 8px 0; padding: 0 !important; letter-spacing: -0.03em; }
 .hello-desc { color: var(--text2); font-size: 1rem; line-height: 1.5; word-break: keep-all; }
@@ -770,9 +770,16 @@ CLOCK = '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
 LIST = '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>'
 
 
-# 앱 아이콘(기어 + 체크). 홈 화면 아이콘과 같은 그림.
-LOGO = ('<svg width="56" height="56" viewBox="0 0 512 512" style="display:block; border-radius:14px">'
-        '<rect width="512" height="512" fill="#2F6BD0"/><path d="M392.9,226.9 L426.3,232.1 L426.3,279.9 L392.9,285.1 L379.6,321.7 L401.9,347.1 L371.1,383.8 L342.2,366.3 L308.4,385.8 L309.2,419.6 L262.0,427.9 L251.1,395.9 L212.7,389.1 L191.6,415.5 L150.1,391.5 L162.3,360.0 L137.3,330.2 L104.1,336.7 L87.8,291.8 L117.4,275.5 L117.4,236.5 L87.8,220.2 L104.1,175.3 L137.3,181.8 L162.3,152.0 L150.1,120.5 L191.6,96.5 L212.7,122.9 L251.1,116.1 L262.0,84.1 L309.2,92.4 L308.4,126.2 L342.2,145.7 L371.1,128.2 L401.9,164.9 L379.6,190.3Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"/><circle cx="256" cy="256" r="140" fill="#FFFFFF"/><circle cx="256" cy="256" r="92" fill="#2F6BD0"/><path d="M214 258L246 290L302 228" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+# 앱 아이콘. 홈 화면 아이콘과 같은 그림(icon-180.png)을 그대로 쓴다.
+def _logo() -> str:
+    f = HERE / "icon-180.png"
+    if not f.exists():
+        return ""
+    data = base64.b64encode(f.read_bytes()).decode()
+    return f'<img src="data:image/png;base64,{data}" width="56" height="56" style="display:block; transform:scale(1.4)">'
+
+
+LOGO = _logo()
 
 
 def html(text: str):
