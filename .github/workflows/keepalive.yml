@@ -20,18 +20,28 @@ jobs:
         run: |
           python - <<'PY'
           from playwright.sync_api import sync_playwright
+          INNER = "https://mjc-mech-lab.streamlit.app/~/+/?embed=true"
           with sync_playwright() as p:
               b = p.chromium.launch()
-              pg = b.new_page()
+              # 1) 처음 오는 사람처럼 (쿠키 없이) 앱 본체를 바로 열어 본다
+              ctx = b.new_context()
+              pg = ctx.new_page()
+              pg.goto(INNER, timeout=120000)
+              pg.wait_for_timeout(25000)
+              print("FRESH:", pg.inner_text("body")[:300].replace("\n", " | "))
+              print("FRESH cookies:", [c["name"] for c in ctx.cookies()])
+              # 2) 바깥 화면으로 열어서 깨운다
               pg.goto("https://mjc-mech-lab.streamlit.app/", timeout=120000)
-              pg.wait_for_timeout(10000)
+              pg.wait_for_timeout(15000)
               wake = pg.get_by_role("button", name="Yes, get this app back up!")
               if wake.count():
                   print("app was asleep, waking up")
                   wake.first.click()
                   pg.wait_for_timeout(90000)
-              pg.goto("https://mjc-mech-lab.streamlit.app/~/+/?embed=true", timeout=120000)
-              pg.wait_for_selector("text=기계공학 실습 도우미", timeout=120000)
-              print("app is awake")
+              print("SHELL cookies:", [c["name"] for c in ctx.cookies()])
+              # 3) 다시 본체
+              pg.goto(INNER, timeout=120000)
+              pg.wait_for_timeout(20000)
+              print("AFTER:", pg.inner_text("body")[:300].replace("\n", " | "))
               b.close()
           PY
