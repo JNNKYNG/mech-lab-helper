@@ -23,7 +23,6 @@
   #cover .bar { width: 120px; height: 3px; border-radius: 2px; background: #DDE2EA; overflow: hidden; }
   #cover .bar i { display: block; width: 40%; height: 100%; background: #2F6BD0; border-radius: 2px; animation: go 1.1s ease-in-out infinite; }
   @keyframes go { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
-  #wake { display: none; margin-top: 8px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 12px; background: #2F6BD0; color: #fff; font-size: 15px; font-family: inherit; }
   #cover.hide { opacity: 0; pointer-events: none; }
 </style>
 </head>
@@ -34,7 +33,6 @@
   <img src="icon-180.png?v=3" alt="">
   <p id="msg">불러오는 중…</p>
   <div class="bar"><i></i></div>
-  <button id="wake" type="button">원래 주소로 열기</button>
 </div>
 <script>
   // 초대 링크(?c=MJ-1234)로 들어오면 그 값을 앱에 그대로 넘긴다.
@@ -43,28 +41,20 @@
   var app = document.getElementById("app");
   var cover = document.getElementById("cover");
   var msg = document.getElementById("msg");
-  var btn = document.getElementById("wake");
   var loaded = false;
 
-  // 스트림릿 클라우드의 바깥 관리 화면을 건너뛰고 앱 본체만 바로 연다 (주소는 한 번만 넣는다).
+  // 앱 주소는 한 번만 넣는다 (예전에는 두 번 불러와서 느렸음).
+  // 앱 화면이 준비될 때까지 우리 로고 화면을 보여 준다.
   app.addEventListener("load", function () {
     loaded = true;
-    setTimeout(function () { cover.classList.add("hide"); }, 800);
-  });
-  app.src = BASE + "/~/+/?embed=true" + extra;
-
-  // 앱이 잠들어 있으면 깨우기 버튼이 있는 원래 주소로 연다.
-  function useShell() {
-    msg.textContent = "앱을 깨우는 중… 30초쯤 걸릴 수 있어요";
-    btn.style.display = "none";
-    cover.classList.remove("hide");
-    app.src = BASE + "/?embed=true" + extra;
     setTimeout(function () { cover.classList.add("hide"); }, 2500);
-  }
-  btn.addEventListener("click", useShell);
+  });
+  app.src = BASE + "/?embed=true" + extra;
+
+  // 오래 걸리면 (서버가 잠들어 있는 경우) 안내만 바꾼다.
   setTimeout(function () {
-    if (!loaded) { msg.textContent = "평소보다 오래 걸리고 있어요"; btn.style.display = "block"; }
-  }, 10000);
+    if (!loaded) msg.textContent = "서버를 깨우는 중이에요… 30초쯤 걸릴 수 있어요";
+  }, 8000);
 </script>
 </body>
 </html>
