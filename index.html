@@ -7,6 +7,7 @@
 <link rel="apple-touch-icon" href="icon-180.png?v=3">
 <link rel="icon" type="image/png" href="icon-192.png?v=3">
 <link rel="manifest" href="manifest.json?v=3">
+<link rel="preconnect" href="https://mjc-mech-lab.streamlit.app">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="실습 도우미">
@@ -14,15 +15,56 @@
 <style>
   html, body { margin: 0; height: 100%; background: #F2F4F8; }
   iframe { border: 0; width: 100%; height: 100vh; height: 100dvh; display: block; }
+  #cover { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+           gap: 16px; background: #F2F4F8; color: #161A22; transition: opacity .3s;
+           font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif; }
+  #cover img { width: 88px; height: 88px; border-radius: 20px; border: 1px solid #DDE2EA; background: #fff; }
+  #cover p { margin: 0; font-size: 15px; color: #5F6878; }
+  #cover .bar { width: 120px; height: 3px; border-radius: 2px; background: #DDE2EA; overflow: hidden; }
+  #cover .bar i { display: block; width: 40%; height: 100%; background: #2F6BD0; border-radius: 2px; animation: go 1.1s ease-in-out infinite; }
+  @keyframes go { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  #wake { display: none; margin-top: 8px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 12px; background: #2F6BD0; color: #fff; font-size: 15px; font-family: inherit; }
+  #cover.hide { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
 <!-- 우리 아이콘과 이름을 가진 입구 페이지. 실제 앱은 아래 틀 안에서 열린다. -->
 <iframe id="app" title="기계공학 실습 도우미" allow="camera; microphone; clipboard-write"></iframe>
+<div id="cover">
+  <img src="icon-180.png?v=3" alt="">
+  <p id="msg">불러오는 중…</p>
+  <div class="bar"><i></i></div>
+  <button id="wake" type="button">원래 주소로 열기</button>
+</div>
 <script>
   // 초대 링크(?c=MJ-1234)로 들어오면 그 값을 앱에 그대로 넘긴다.
   var extra = location.search ? "&" + location.search.slice(1) : "";
-  document.getElementById("app").src = "https://mjc-mech-lab.streamlit.app/?embed=true" + extra;
+  var BASE = "https://mjc-mech-lab.streamlit.app";
+  var app = document.getElementById("app");
+  var cover = document.getElementById("cover");
+  var msg = document.getElementById("msg");
+  var btn = document.getElementById("wake");
+  var loaded = false;
+
+  // 스트림릿 클라우드의 바깥 관리 화면을 건너뛰고 앱 본체만 바로 연다 (주소는 한 번만 넣는다).
+  app.addEventListener("load", function () {
+    loaded = true;
+    setTimeout(function () { cover.classList.add("hide"); }, 800);
+  });
+  app.src = BASE + "/~/+/?embed=true" + extra;
+
+  // 앱이 잠들어 있으면 깨우기 버튼이 있는 원래 주소로 연다.
+  function useShell() {
+    msg.textContent = "앱을 깨우는 중… 30초쯤 걸릴 수 있어요";
+    btn.style.display = "none";
+    cover.classList.remove("hide");
+    app.src = BASE + "/?embed=true" + extra;
+    setTimeout(function () { cover.classList.add("hide"); }, 2500);
+  }
+  btn.addEventListener("click", useShell);
+  setTimeout(function () {
+    if (!loaded) { msg.textContent = "평소보다 오래 걸리고 있어요"; btn.style.display = "block"; }
+  }, 10000);
 </script>
 </body>
 </html>
