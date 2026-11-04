@@ -29,8 +29,12 @@ jobs:
               if wake.count():
                   print("app was asleep, waking up")
                   wake.first.click()
-              app = pg.frame_locator("iframe").first.get_by_text("기계공학 실습 도우미").first
-              app.wait_for(timeout=180000)
-              print("app is awake")
+              pg.wait_for_timeout(40000)
+              print("PAGE:", pg.inner_text("body")[:300].replace("\n", " | "))
+              for f in pg.frames:
+                  try:
+                      print("FRAME", f.url[:80], "=>", f.inner_text("body")[:200].replace("\n", " | "))
+                  except Exception as e:
+                      print("FRAME", f.url[:80], "ERR", e)
               b.close()
           PY
