@@ -1,0 +1,37 @@
+# 스트림릿 무료 서버는 한동안 아무도 안 들어오면 잠들어서, 다음 사람이 열 때 오래 걸린다.
+# 몇 시간마다 한 번씩 앱을 열어서 깨어 있게 한다. (잠들어 있으면 깨우기 버튼도 눌러 준다)
+name: keep-alive
+
+on:
+  schedule:
+    - cron: "17 */4 * * *"
+  workflow_dispatch:
+
+jobs:
+  visit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright==1.48.0 && python -m playwright install --with-deps chromium
+      - name: open app
+        run: |
+          python - <<'PY'
+          from playwright.sync_api import sync_playwright
+          with sync_playwright() as p:
+              b = p.chromium.launch()
+              pg = b.new_page()
+              pg.goto("https://mjc-mech-lab.streamlit.app/", timeout=120000)
+              pg.wait_for_timeout(10000)
+              wake = pg.get_by_role("button", name="Yes, get this app back up!")
+              if wake.count():
+                  print("app was asleep, waking up")
+                  wake.first.click()
+                  pg.wait_for_timeout(90000)
+              pg.goto("https://mjc-mech-lab.streamlit.app/~/+/?embed=true", timeout=120000)
+              pg.wait_for_selector("text=기계공학 실습 도우미", timeout=120000)
+              print("app is awake")
+              b.close()
+          PY
