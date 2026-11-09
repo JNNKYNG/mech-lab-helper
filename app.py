@@ -158,7 +158,7 @@ CHECKLISTS = {
 # 모든 장비에 공통으로 붙는 항목
 COMMON_CHECKS = [
     "비상정지 버튼(또는 전원 스위치) 위치를 확인했다",
-    "조교나 교수님이 실습실에 계신다",
+    "교수님이 실습실에 계신다",
 ]
 
 # 점검표가 없는 장비에서 AI도 쓸 수 없을 때 쓰는 기본 항목
@@ -186,7 +186,7 @@ END_CHECKS = [
     "칩과 가루를 브러시로 치웠다 (손이나 입으로 치우지 않았다)",
     "쓴 공구와 측정기를 제자리에 뒀다",
     "바닥의 기름, 절삭유, 칩을 치웠다",
-    "작업 중 이상이 있었다면 조교나 교수님께 알렸다",
+    "작업 중 이상이 있었다면 교수님께 알렸다",
 ]
 
 # 장비에 따라 마무리 점검에 더 붙는 항목
@@ -229,7 +229,7 @@ SYSTEM_PROMPT = f"""
 규칙:
 - 아래 [실습실 안전수칙]을 가장 우선해서 답한다.
 - 사진에서 확실하지 않은 것은 추측하지 말고 "사진으로는 확인이 어렵다"고 말한다.
-- 위험할 수 있는 작업은 반드시 조교나 교수님께 확인하라고 안내한다.
+- 위험할 수 있는 작업은 반드시 교수님께 확인하라고 안내한다.
 - 답은 정해진 형식을 지킨다.
 - 존댓말(해요체)로 답하고, 형식에서 정한 표시(✅ ❌ ❓) 말고는 이모지를 쓰지 않는다.
 
@@ -1039,7 +1039,7 @@ def student_screen(code: str, team: str, name: str):
                 items, source = get_checklist(code, tool)
                 items = items + COMMON_CHECKS
                 if source == "ai":
-                    st.caption("이 장비의 점검표는 AI가 작성한 초안입니다. 처음 사용할 때는 조교나 교수님께 내용을 확인받으세요.")
+                    st.caption("이 장비의 점검표는 AI가 작성한 초안입니다. 처음 사용할 때는 교수님께 내용을 확인받으세요.")
                 with st.container(key="checks"):
                     ticks = [st.checkbox(item, key=f"chk_{turn}_{tool}_{i}") for i, item in enumerate(items)]
                 st.progress(sum(ticks) / len(items), text=f"{sum(ticks)} / {len(items)} 확인")
@@ -1047,7 +1047,7 @@ def student_screen(code: str, team: str, name: str):
                 photo_result, ready = "", False
                 if not all(ticks):
                     st.caption("모든 항목을 확인해야 다음 단계로 넘어갑니다. "
-                               "확인할 수 없는 항목이 있으면 작업을 시작하지 말고 조교나 교수님께 알려 주세요.")
+                               "확인할 수 없는 항목이 있으면 작업을 시작하지 말고 교수님께 알려 주세요.")
                 else:
                     # ---------- 준비 상태 사진을 AI가 확인 ----------
                     step("STEP 3", "준비 상태 사진 확인")
@@ -1068,8 +1068,8 @@ def student_screen(code: str, team: str, name: str):
                         st.success("사진에서 확인되는 문제는 없습니다. 사진에 보이지 않는 부분은 직접 확인한 내용을 따릅니다.")
                         photo_result, ready = "AI 확인", True
                     elif verdict == "문제 발견":
-                        st.error("사진에서 문제가 확인됐습니다. 조치한 뒤 다시 촬영하거나, 조교나 교수님께 확인받으세요.")
-                        if st.checkbox("문제를 조치했고, 조교나 교수님께 확인받았습니다", key=f"fixed_{turn}_{tool}"):
+                        st.error("사진에서 문제가 확인됐습니다. 조치한 뒤 다시 촬영하거나, 교수님께 확인받으세요.")
+                        if st.checkbox("문제를 조치했고, 교수님께 확인받았습니다", key=f"fixed_{turn}_{tool}"):
                             photo_result, ready = "문제 발견 후 조치", True
                     else:
                         if verdict == "확인 어려움":
@@ -1322,4 +1322,4 @@ elif role == "prof" and "teams" in room_now:
 else:
     entry_screen()
 
-html('<div class="foot">참고용 도구입니다. 실제 작업 전에는 반드시 조교나 교수님의 안내를 따르세요.</div>')
+html('<div class="foot">참고용 도구입니다. 실제 작업 전에는 반드시 교수님의 안내를 따르세요.</div>')
